@@ -79,6 +79,8 @@ static PyObject *m_get_output_devices(DeepinPulseAudioObject *self);
 static PyObject *m_get_input_devices(DeepinPulseAudioObject *self);
 static PyObject *m_get_output_channels(DeepinPulseAudioObject *self, 
                                        PyObject *args);
+static PyObject *m_get_input_channels(DeepinPulseAudioObject *self,            
+                                      PyObject *args);   
 
 static PyMethodDef deepin_pulseaudio_object_methods[] = 
 {
@@ -104,6 +106,10 @@ static PyMethodDef deepin_pulseaudio_object_methods[] =
      m_get_output_channels, 
      METH_VARARGS, 
      "Get output channels"}, 
+    {"get_input_channels",                                                     
+     m_get_input_channels,                                                     
+     METH_VARARGS,                                                              
+     "Get input channels"},   
     {NULL, NULL, 0, NULL}
 };
 
@@ -279,6 +285,13 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
         return NULL;
     }
 
+    self->input_channels = PyDict_New();
+    if (!self->input_channels) {
+        ERROR("PyDict_New error");
+        m_delete(self);
+        return NULL;
+    }
+
     self->output_channels = PyDict_New();
     if (!self->output_channels) {
         ERROR("PyDict_New error");
@@ -433,7 +446,7 @@ static PyObject *m_get_output_devices(DeepinPulseAudioObject *self)
                                     self->pa_output_devices[ctr].description, 
                                     self->pa_output_devices[ctr].name, 
                                     self->pa_output_devices[ctr].index));
-        /*
+        /* TODO: for debug only
         printf("=======[ Output Device #%d ]=======\n", ctr + 1);                 
         printf("Description: %s\n", self->pa_output_devices[ctr].description);        
         printf("Name: %s\n", self->pa_output_devices[ctr].name);                   
@@ -459,7 +472,7 @@ static PyObject *m_get_input_devices(DeepinPulseAudioObject *self)
                                     self->pa_input_devices[ctr].description,
                                     self->pa_input_devices[ctr].name,       
                                     self->pa_input_devices[ctr].index));    
-        /*                                                                      
+        /* TODO: for debug only                                                  
         printf("=======[ Output Device #%d ]=======\n", ctr + 1);                 
         printf("Description: %s\n", self->pa_input_devices[ctr].description);        
         printf("Name: %s\n", self->pa_input_devices[ctr].name);                   
@@ -474,8 +487,34 @@ static PyObject *m_get_input_devices(DeepinPulseAudioObject *self)
 static PyObject *m_get_output_channels(DeepinPulseAudioObject *self, 
                                        PyObject *args) 
 {
-    return self->output_channels;
+    char *device = NULL;
+    
+    if (!PyArg_ParseTuple(args, "s", &device)) {
+        ERROR("invalid arguments to get_output_channels");
+        return NULL;
+    }
+    
+    if (PyDict_Contains(self->output_channels, STRING(device))) 
+        return PyDict_GetItemString(self->output_channels, device);
+    else
+        return self->output_channels;
 }
+
+static PyObject *m_get_input_channels(DeepinPulseAudioObject *self,            
+                                      PyObject *args)                          
+{                                                                               
+    char *device = NULL;                                                        
+                                                                                
+    if (!PyArg_ParseTuple(args, "s", &device)) {                                
+        ERROR("invalid arguments to get_input_channels");                      
+        return NULL;                                                            
+    } 
+                                                                                
+    if (PyDict_Contains(self->input_channels, STRING(device)))                 
+        return PyDict_GetItemString(self->input_channels, device);             
+    else                                                                        
+        return self->input_channels;                                           
+}             
 
 // This callback gets called when our context changes state.  We really only    
 // care about when it's ready or if it has failed                               
@@ -559,7 +598,9 @@ static void m_pa_sinklist_cb(pa_context *c,
                               Py_BuildValue("(ss)", 
                                             port->description, 
                                             port->name));
-                //printf("DEBUG sink %s %s\n", port->name, port->description);         
+                /* TODO: for debug only 
+                printf("DEBUG sink %s %s\n", port->name, port->description);
+                */
             }                                                                   
             pa_devicelist[ctr].index = l->index;                                
             pa_devicelist[ctr].initialized = 1;                                 
@@ -577,7 +618,9 @@ static void m_pa_sourcelist_cb(pa_context *c,
     DeepinPulseAudioObject *self = userdata;
     pa_devicelist_t *pa_devicelist = self->pa_input_devices;                                  
     pa_source_port_info **ports = NULL;                                         
-    pa_source_port_info *port = NULL;                                           
+    pa_source_port_info *port = NULL;       
+    PyObject *key = NULL;
+    PyObject *value = NULL;
     int ctr = 0;                                                                
     int i = 0;                                                                  
                                                                                 
@@ -595,6 +638,19 @@ static void m_pa_sourcelist_cb(pa_context *c,
         if (!pa_devicelist[ctr].initialized) {                                 
             strncpy(pa_devicelist[ctr].name, l->name, 511);                     
             strncpy(pa_devicelist[ctr].description, l->description, 255);       
+            pa_devicelist[ctr].channel_map = l->channel_map;                    
+            /* TODO: enum pa_channel_position */                                
+            value = PyList_New(0);                                              
+            for (i = 0; i <= l->channel_map.channels; i++) {                    
+                PyList_Append(value,                                            
+                              INT(pa_devicelist[ctr].channel_map.map[i]));         
+            }                                                                   
+            key = STRING(pa_devicelist[ctr].name);                              
+            PyDict_SetItem(self->input_channels,                               
+                           key,                                                 
+                           value);                                              
+            Py_DecRef(key);                                                     
+            Py_DecRef(value);   
             ports = l->ports;                                                   
             for (i = 0; i < l->n_ports; i++) {                                  
                 port = ports[i];                                                
@@ -602,7 +658,9 @@ static void m_pa_sourcelist_cb(pa_context *c,
                               Py_BuildValue("(ss)",                             
                                             port->description,                  
                                             port->name));    
-                //printf("DEBUG %s %s\n", port->name, port->description);         
+                /* TODO: for debug only 
+                printf("DEBUG %s %s\n", port->name, port->description);
+                */
             }                                                                   
             pa_devicelist[ctr].index = l->index;                                
             pa_devicelist[ctr].initialized = 1;                                 
