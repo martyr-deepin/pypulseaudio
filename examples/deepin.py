@@ -45,5 +45,7 @@ def test():
     print deepin_pulseaudio_obj.get_input_active_ports("")
     print "========get_output_mute testcase========"
     print deepin_pulseaudio_obj.get_output_mute(output_devices[0][1])
+    print "========get_input_mute testcase========"                            
+    print deepin_pulseaudio_obj.get_input_mute(input_devices[0][1])       
 
 test()

@@ -58,6 +58,8 @@ typedef struct {
     PyObject *output_active_ports;
     PyObject *input_mute;
     PyObject *output_mute;
+    PyObject *input_volume;
+    PyObject *output_volume;
 } DeepinPulseAudioObject;
 
 static PyObject *m_deepin_pulseaudio_object_constants = NULL;
@@ -99,6 +101,10 @@ static PyObject *m_get_input_mute(DeepinPulseAudioObject *self,
                                   PyObject *args);
 static PyObject *m_get_output_mute(DeepinPulseAudioObject *self,                    
                                    PyObject *args);     
+static PyObject *m_get_input_volume(DeepinPulseAudioObject *self,              
+                                    PyObject *args);                    
+static PyObject *m_get_output_volume(DeepinPulseAudioObject *self, 
+                                     PyObject *args);
 
 static PyMethodDef deepin_pulseaudio_object_methods[] = 
 {
@@ -137,6 +143,15 @@ static PyMethodDef deepin_pulseaudio_object_methods[] =
      METH_VARARGS,                                                              
      "Get input active ports"},    
     {"get_output_mute", m_get_output_mute, METH_VARARGS, "Get output mute"}, 
+    {"get_input_mute", m_get_input_mute, METH_VARARGS, "Get input mute"},
+    {"get_output_volume", 
+     m_get_output_volume, 
+     METH_VARARGS, 
+     "Get output volume"}, 
+    {"get_input_volume",                                                       
+     m_get_input_volume,                                                       
+     METH_VARARGS,                                                              
+     "Get input volume"},  
     {NULL, NULL, 0, NULL}
 };
 
@@ -354,7 +369,21 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
         ERROR("PyDict_New error");                                              
         m_delete(self);                                                         
         return NULL;                                                            
-    }                          
+    } 
+
+    self->output_volume = PyDict_New();
+    if (!self->output_volume) {
+        ERROR("PyDict_New error");
+        m_delete(self);
+        return NULL;
+    }
+
+    self->input_volume = PyDict_New();                                         
+    if (!self->input_volume) {                                                 
+        ERROR("PyDict_New error");                                              
+        m_delete(self);                                                         
+        return NULL;                                                            
+    }       
     
     return self;
 }
@@ -511,13 +540,6 @@ static PyObject *m_get_output_devices(DeepinPulseAudioObject *self)
                                     self->pa_output_devices[ctr].description, 
                                     self->pa_output_devices[ctr].name, 
                                     self->pa_output_devices[ctr].index));
-        /* TODO: for debug only
-        printf("=======[ Output Device #%d ]=======\n", ctr + 1);                 
-        printf("Description: %s\n", self->pa_output_devices[ctr].description);        
-        printf("Name: %s\n", self->pa_output_devices[ctr].name);                   
-        printf("Index: %d\n", self->pa_output_devices[ctr].index);                 
-        printf("\n");              
-        */
     }   
 
     return list;
@@ -537,13 +559,6 @@ static PyObject *m_get_input_devices(DeepinPulseAudioObject *self)
                                     self->pa_input_devices[ctr].description,
                                     self->pa_input_devices[ctr].name,       
                                     self->pa_input_devices[ctr].index));    
-        /* TODO: for debug only                                                  
-        printf("=======[ Output Device #%d ]=======\n", ctr + 1);                 
-        printf("Description: %s\n", self->pa_input_devices[ctr].description);        
-        printf("Name: %s\n", self->pa_input_devices[ctr].name);                   
-        printf("Index: %d\n", self->pa_input_devices[ctr].index);                 
-        printf("\n");                                                           
-        */                                                                      
     }                                                                           
                                                                                 
     return list;                                                                
@@ -629,6 +644,55 @@ static PyObject *m_get_output_mute(DeepinPulseAudioObject *self, PyObject *args)
         return Py_False;
     }
 }
+
+static PyObject *m_get_input_mute(DeepinPulseAudioObject *self, PyObject *args) 
+{                                                                               
+    char *device = NULL;                                                        
+                                                                                
+    if (!PyArg_ParseTuple(args, "s", &device)) {                                
+        ERROR("invalid arguments to get_input_mute");                              
+        return NULL;                                                            
+    }                                                                           
+                                                                                
+    if (PyDict_Contains(self->input_mute, STRING(device))) {                   
+        return PyDict_GetItem(self->input_mute, STRING(device));               
+    } else {                                                                    
+        Py_INCREF(Py_False);                                                    
+        return Py_False;                                                        
+    }                                                                           
+}                
+
+static PyObject *m_get_output_volume(DeepinPulseAudioObject *self, 
+                                     PyObject *args) 
+{                                                                               
+    char *device = NULL;                                                        
+                                                                                
+    if (!PyArg_ParseTuple(args, "s", &device)) {                                
+        ERROR("invalid arguments to get_output_volume");                              
+        return NULL;                                                            
+    }                                                                           
+                                                                                
+    if (PyDict_Contains(self->output_volume, STRING(device))) 
+        return PyDict_GetItem(self->output_volume, STRING(device));               
+    else
+        return self->output_volume;
+}           
+
+static PyObject *m_get_input_volume(DeepinPulseAudioObject *self,              
+                                    PyObject *args)                            
+{                                                                               
+    char *device = NULL;                                                        
+                                                                                
+    if (!PyArg_ParseTuple(args, "s", &device)) {                                
+        ERROR("invalid arguments to get_input_volume");                            
+        return NULL;                                                            
+    }                                                                           
+                                                                                
+    if (PyDict_Contains(self->input_volume, STRING(device)))                   
+        return PyDict_GetItem(self->input_volume, STRING(device));             
+    else                                                                        
+        return self->input_volume;                                             
+}                                                                                        
 
 // This callback gets called when our context changes state.  We really only    
 // care about when it's ready or if it has failed                               
@@ -717,9 +781,6 @@ static void m_pa_sinklist_cb(pa_context *c,
                               Py_BuildValue("(ss)", 
                                             port->description, 
                                             port->name));
-                /* TODO: for debug only 
-                printf("DEBUG sink %s %s\n", port->name, port->description);
-                */
             }                
             active_port = l->active_port;
             if (active_port) {
@@ -732,22 +793,9 @@ static void m_pa_sinklist_cb(pa_context *c,
                                active_port_value);
                 Py_DecRef(active_port_key);
                 Py_DecRef(active_port_value);
-                /* TODO: for debug only
-                printf("DEBUG active port %s %s\n", 
-                       active_port->description, 
-                       active_port->name);
-                */
             }
             mute_key = STRING(pa_devicelist[ctr].name);
-            printf("DEBUG mute %d\n", l->mute);
-            //mute_value = l->mute ? Py_True : Py_False;
-            if (l->mute) {
-                Py_INCREF(Py_True);
-                mute_value = Py_True;
-            } else {
-                Py_INCREF(Py_False);
-                mute_value = Py_False;
-            }
+            mute_value = l->mute ? Py_True : Py_False;
             PyDict_SetItem(self->output_mute, mute_key, mute_value);
             Py_DecRef(mute_key);
             Py_DecRef(mute_value);
@@ -773,6 +821,8 @@ static void m_pa_sourcelist_cb(pa_context *c,
     PyObject *channel_value = NULL;
     PyObject *active_port_key = NULL;
     PyObject *active_port_value = NULL;
+    PyObject *mute_key = NULL;
+    PyObject *mute_value = NULL;
     int ctr = 0;                                                                
     int i = 0;                                                                  
                                                                                 
@@ -810,9 +860,6 @@ static void m_pa_sourcelist_cb(pa_context *c,
                               Py_BuildValue("(ss)",                             
                                             port->description,                  
                                             port->name));    
-                /* TODO: for debug only 
-                printf("DEBUG %s %s\n", port->name, port->description);
-                */
             } 
             active_port = l->active_port;                                       
             if (active_port) {
@@ -825,12 +872,12 @@ static void m_pa_sourcelist_cb(pa_context *c,
                                active_port_value);                                  
                 Py_DecRef(active_port_key);                                         
                 Py_DecRef(active_port_value);                                       
-                /* TODO: for debug only                                             
-                printf("DEBUG active port %s %s\n",                                 
-                       active_port->description,                                    
-                       active_port->name);                                          
-                */                
             }
+            mute_key = STRING(pa_devicelist[ctr].name);                         
+            mute_value = l->mute ? Py_True : Py_False;                          
+            PyDict_SetItem(self->output_mute, mute_key, mute_value);            
+            Py_DecRef(mute_key);                                                
+            Py_DecRef(mute_value);  
             pa_devicelist[ctr].index = l->index;                                
             pa_devicelist[ctr].initialized = 1;                                 
             break;                                                              
