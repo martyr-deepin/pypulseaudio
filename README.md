@@ -1,0 +1,4 @@
+pypulseaudio
+============
+
+PulseAudio Python Binding
