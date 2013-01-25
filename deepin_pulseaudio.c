@@ -47,6 +47,7 @@ typedef struct pa_devicelist {
 typedef struct {
     PyObject_HEAD
     PyObject *dict; /* Python attributes dictionary */
+    pa_context *pa_ctx;
     pa_devicelist_t *pa_input_devices;
     pa_devicelist_t *pa_output_devices;
     PyObject *input_ports;
@@ -104,6 +105,8 @@ static PyObject *m_get_input_volume(DeepinPulseAudioObject *self,
                                     PyObject *args);                    
 static PyObject *m_get_output_volume(DeepinPulseAudioObject *self, 
                                      PyObject *args);
+static PyObject *m_set_output_active_port(DeepinPulseAudioObject *self, 
+                                          PyObject *args);
 
 static PyMethodDef deepin_pulseaudio_object_methods[] = 
 {
@@ -151,6 +154,10 @@ static PyMethodDef deepin_pulseaudio_object_methods[] =
      m_get_input_volume,                                                       
      METH_VARARGS,                                                              
      "Get input volume"},  
+    {"set_output_active_port", 
+     m_set_output_active_port, 
+     METH_VARARGS, 
+     "Set output active port"}, 
     {NULL, NULL, 0, NULL}
 };
 
@@ -294,6 +301,7 @@ static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object()
     PyObject_GC_Track(self);
 
     self->dict = NULL;
+    self->pa_ctx = NULL;
     self->pa_input_devices = NULL;
     self->pa_output_devices = NULL;
     self->input_ports = NULL;
@@ -404,7 +412,6 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
     pa_mainloop *pa_ml;                                                         
     pa_mainloop_api *pa_mlapi;                                                  
     pa_operation *pa_op;                                                        
-    pa_context *pa_ctx;                                                         
                                                                                 
     // We'll need these state variables to keep track of our requests           
     int state = 0;                                                              
@@ -417,17 +424,17 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
     // Create a mainloop API and connection to the default server               
     pa_ml = pa_mainloop_new();                                                  
     pa_mlapi = pa_mainloop_get_api(pa_ml);                                      
-    pa_ctx = pa_context_new(pa_mlapi, "deepin");                                  
+    self->pa_ctx = pa_context_new(pa_mlapi, "deepin");                                  
                                                                                 
     // This function connects to the pulse server                               
-    pa_context_connect(pa_ctx, NULL, 0, NULL);
+    pa_context_connect(self->pa_ctx, NULL, 0, NULL);
 
     // This function defines a callback so the server will tell us it's state.  
     // Our callback will wait for the state to be ready.  The callback will     
     // modify the variable to 1 so we know when we have a connection and it's   
     // ready.                                                                   
     // If there's an error, the callback will set pa_ready to 2                 
-    pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);              
+    pa_context_set_state_callback(self->pa_ctx, m_pa_state_cb, &pa_ready);              
                                                                                 
     // Now we'll enter into an infinite loop until we get the data we receive   
     // or if there's an error                                                   
@@ -440,8 +447,8 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
         }                                                                       
         // We couldn't get a connection to the server, so exit out              
         if (pa_ready == 2) {                                                    
-            pa_context_disconnect(pa_ctx);                                      
-            pa_context_unref(pa_ctx);                                           
+            pa_context_disconnect(self->pa_ctx);                                      
+            pa_context_unref(self->pa_ctx);                                           
             pa_mainloop_free(pa_ml);                                            
             Py_INCREF(Py_False);                                                    
             return Py_False;     
@@ -455,7 +462,7 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
                 // our callback function and a pointer to our devicelist will   
                 // be passed to the callback The operation ID is stored in the  
                 // pa_op variable                                               
-                pa_op = pa_context_get_sink_info_list(pa_ctx,                   
+                pa_op = pa_context_get_sink_info_list(self->pa_ctx,                   
                         m_pa_sinklist_cb,                                         
                         self);                                                      
                                                                                 
@@ -472,7 +479,7 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
                     // Now we perform another operation to get the source       
                     // (input device) list just like before.  This time we pass 
                     // a pointer to our input structure                         
-                    pa_op = pa_context_get_source_info_list(pa_ctx,             
+                    pa_op = pa_context_get_source_info_list(self->pa_ctx,             
                             m_pa_sourcelist_cb,                                   
                             self);                                                  
                     // Update the state so we know what to do next              
@@ -483,8 +490,8 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
                 if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {       
                     // Now we're done, clean up and disconnect and return       
                     pa_operation_unref(pa_op);                                  
-                    pa_context_disconnect(pa_ctx);                              
-                    pa_context_unref(pa_ctx);                                   
+                    pa_context_disconnect(self->pa_ctx);                              
+                    pa_context_unref(self->pa_ctx);                                   
                     pa_mainloop_free(pa_ml);                                    
                     Py_INCREF(Py_True);                                                    
                     return Py_True;     
@@ -693,6 +700,28 @@ static PyObject *m_get_input_volume(DeepinPulseAudioObject *self,
         return self->input_volume;                                             
 }                                                                                        
 
+static PyObject *m_set_output_active_port(DeepinPulseAudioObject *self, 
+                                          PyObject *args) 
+{
+    int index = 0;
+    PyObject *port_item = NULL;
+    char *port = NULL;
+
+    if (!PyArg_ParseTuple(args, "n", &index)) {
+        ERROR("invalid arguments to set_output_active_port");
+        return NULL;
+    }
+
+    port_item = PyList_GetItem(self->output_ports, index);
+    printf("DEBUG %d\n", PyTuple_Size(port_item));
+    port = PyString_AsString(PyTuple_GetItem(port_item, 1));
+    printf("DEBUG %s\n", port);
+
+    pa_context_set_sink_port_by_index(self->pa_ctx, index, port, NULL, NULL);
+    Py_INCREF(Py_True);
+    return Py_True;
+}
+
 // This callback gets called when our context changes state.  We really only    
 // care about when it's ready or if it has failed                               
 static void m_pa_state_cb(pa_context *c, void *userdata) {                               
@@ -774,7 +803,7 @@ static void m_pa_sinklist_cb(pa_context *c,
                 PyList_Append(self->output_ports, 
                               Py_BuildValue("(ss)", 
                                             port->description, 
-                                            port->name));
+                                            port->name)); 
             }                
             active_port = l->active_port;
             if (active_port) {
