@@ -72,6 +72,8 @@ static void m_pa_sourcelist_cb(pa_context *c, const pa_source_info *l, int eol, 
 static PyObject *m_get_devicelist(DeepinPulseAudioObject *self);
 static PyObject *m_get_output_portlist(DeepinPulseAudioObject *self);
 static PyObject *m_get_input_portlist(DeepinPulseAudioObject *self);
+static PyObject *m_get_output_devicelist(DeepinPulseAudioObject *self);
+static PyObject *m_get_input_devicelist(DeepinPulseAudioObject *self);
 
 static PyMethodDef deepin_pulseaudio_object_methods[] = 
 {
@@ -85,6 +87,14 @@ static PyMethodDef deepin_pulseaudio_object_methods[] =
      m_get_input_portlist,                                                     
      METH_NOARGS,                                                               
      "Get input port list"},    
+    {"get_output_devicelist",                                                      
+     m_get_output_devicelist,                                                      
+     METH_NOARGS,                                                               
+     "Get output device list"},  
+    {"get_input_devicelist",                                                   
+     m_get_input_devicelist,                                                   
+     METH_NOARGS,                                                               
+     "Get input device list"},      
     {NULL, NULL, 0, NULL}
 };
 
@@ -390,6 +400,58 @@ static PyObject *m_get_input_portlist(DeepinPulseAudioObject *self)
     Py_INCREF(self->input_portlist);                                              
     return self->input_portlist;                                                  
 }    
+
+static PyObject *m_get_output_devicelist(DeepinPulseAudioObject *self) 
+{
+    PyObject *list = PyList_New(0);
+    int ctr = 0;
+
+    for (ctr = 0; ctr < 16; ctr++) {                                            
+        if (!self->pa_output_devicelist[ctr].initialized) {                          
+            break;                                                              
+        }
+        PyList_Append(list, 
+                      Py_BuildValue("(ssd)", 
+                                    self->pa_output_devicelist[ctr].description, 
+                                    self->pa_output_devicelist[ctr].name, 
+                                    self->pa_output_devicelist[ctr].index));
+        /*
+        printf("=======[ Output Device #%d ]=======\n", ctr + 1);                 
+        printf("Description: %s\n", self->pa_output_devicelist[ctr].description);        
+        printf("Name: %s\n", self->pa_output_devicelist[ctr].name);                   
+        printf("Index: %d\n", self->pa_output_devicelist[ctr].index);                 
+        printf("\n");              
+        */
+    }   
+
+    return list;
+}
+
+static PyObject *m_get_input_devicelist(DeepinPulseAudioObject *self)          
+{                                                                               
+    PyObject *list = PyList_New(0);                                             
+    int ctr = 0;                                                                 
+                                                                                
+    for (ctr = 0; ctr < DEVICE_NUM; ctr++) {                                             
+        if (!self->pa_input_devicelist[ctr].initialized) {                           
+            break;                                                              
+        }                                                                       
+        PyList_Append(list,                                                     
+                      Py_BuildValue("(ssd)",                                    
+                                    self->pa_input_devicelist[ctr].description,
+                                    self->pa_input_devicelist[ctr].name,       
+                                    self->pa_input_devicelist[ctr].index));    
+        /*                                                                      
+        printf("=======[ Output Device #%d ]=======\n", ctr + 1);                 
+        printf("Description: %s\n", self->pa_input_devicelist[ctr].description);        
+        printf("Name: %s\n", self->pa_input_devicelist[ctr].name);                   
+        printf("Index: %d\n", self->pa_input_devicelist[ctr].index);                 
+        printf("\n");                                                           
+        */                                                                      
+    }                                                                           
+                                                                                
+    return list;                                                                
+}        
 
 // This callback gets called when our context changes state.  We really only    
 // care about when it's ready or if it has failed                               
