@@ -85,6 +85,8 @@ static PyObject *m_get_input_channels(DeepinPulseAudioObject *self,
                                       PyObject *args);   
 static PyObject *m_get_output_active_ports(DeepinPulseAudioObject *self,            
                                            PyObject *args);               
+static PyObject *m_get_input_active_ports(DeepinPulseAudioObject *self,            
+                                          PyObject *args);     
 
 static PyMethodDef deepin_pulseaudio_object_methods[] = 
 {
@@ -118,6 +120,10 @@ static PyMethodDef deepin_pulseaudio_object_methods[] =
      m_get_output_active_ports,                                                     
      METH_VARARGS,                                                              
      "Get output active ports"},
+    {"get_input_active_ports",                                                 
+     m_get_input_active_ports,                                                 
+     METH_VARARGS,                                                              
+     "Get input active ports"},    
     {NULL, NULL, 0, NULL}
 };
 
@@ -267,6 +273,8 @@ static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object()
     self->output_ports = NULL;
     self->input_channels = NULL;
     self->output_channels = NULL;
+    self->input_active_ports = NULL;
+    self->output_active_ports = NULL;
 
     return self;
 }
@@ -554,6 +562,22 @@ static PyObject *m_get_output_active_ports(DeepinPulseAudioObject *self,
         return self->output_active_ports;                                           
 }           
 
+static PyObject *m_get_input_active_ports(DeepinPulseAudioObject *self,           
+                                          PyObject *args)                         
+{                                                                                  
+    char *device = NULL;                                                           
+                                                                                   
+    if (!PyArg_ParseTuple(args, "s", &device)) {                                   
+        ERROR("invalid arguments to get_input_active_ports");                          
+        return NULL;                                                               
+    }                                                                              
+                                                                                   
+    if (PyDict_Contains(self->input_active_ports, STRING(device)))                     
+        return PyDict_GetItemString(self->input_active_ports, device);                 
+    else                                                                           
+        return self->input_active_ports;                                               
+}                
+
 // This callback gets called when our context changes state.  We really only    
 // care about when it's ready or if it has failed                               
 static void m_pa_state_cb(pa_context *c, void *userdata) {                               
@@ -644,18 +668,22 @@ static void m_pa_sinklist_cb(pa_context *c,
                 */
             }                
             active_port = l->active_port;
-            active_port_key = STRING(pa_devicelist[ctr].name);
-            active_port_value = Py_BuildValue("(ss)", 
-                                              active_port->description, 
-                                              active_port->name);
-            PyDict_SetItem(self->output_active_ports, 
-                           active_port_key, 
-                           active_port_value);
-            Py_DecRef(active_port_key);
-            Py_DecRef(active_port_value);
-            printf("DEBUG active port %s %s\n", 
-                   active_port->description, 
-                   active_port->name);
+            if (active_port) {
+                active_port_key = STRING(pa_devicelist[ctr].name);
+                active_port_value = Py_BuildValue("(ss)", 
+                                                  active_port->description, 
+                                                  active_port->name);
+                PyDict_SetItem(self->output_active_ports, 
+                               active_port_key, 
+                               active_port_value);
+                Py_DecRef(active_port_key);
+                Py_DecRef(active_port_value);
+                /* TODO: for debug only
+                printf("DEBUG active port %s %s\n", 
+                       active_port->description, 
+                       active_port->name);
+                */
+            }
             pa_devicelist[ctr].index = l->index;                                
             pa_devicelist[ctr].initialized = 1;                                 
             break;                                                              
@@ -672,9 +700,12 @@ static void m_pa_sourcelist_cb(pa_context *c,
     DeepinPulseAudioObject *self = userdata;
     pa_devicelist_t *pa_devicelist = self->pa_input_devices;                                  
     pa_source_port_info **ports = NULL;                                         
-    pa_source_port_info *port = NULL;       
-    PyObject *key = NULL;
-    PyObject *value = NULL;
+    pa_source_port_info *port = NULL;      
+    pa_source_port_info *active_port = NULL;
+    PyObject *channel_key = NULL;
+    PyObject *channel_value = NULL;
+    PyObject *active_port_key = NULL;
+    PyObject *active_port_value = NULL;
     int ctr = 0;                                                                
     int i = 0;                                                                  
                                                                                 
@@ -694,17 +725,17 @@ static void m_pa_sourcelist_cb(pa_context *c,
             strncpy(pa_devicelist[ctr].description, l->description, 255);       
             pa_devicelist[ctr].channel_map = l->channel_map;                    
             /* TODO: enum pa_channel_position */                                
-            value = PyList_New(0);                                              
+            channel_value = PyList_New(0);                                              
             for (i = 0; i <= l->channel_map.channels; i++) {                    
-                PyList_Append(value,                                            
+                PyList_Append(channel_value,                                            
                               INT(pa_devicelist[ctr].channel_map.map[i]));         
             }                                                                   
-            key = STRING(pa_devicelist[ctr].name);                              
+            channel_key = STRING(pa_devicelist[ctr].name);                              
             PyDict_SetItem(self->input_channels,                               
-                           key,                                                 
-                           value);                                              
-            Py_DecRef(key);                                                     
-            Py_DecRef(value);   
+                           channel_key,                                                 
+                           channel_value);                                              
+            Py_DecRef(channel_key);                                                     
+            Py_DecRef(channel_value);   
             ports = l->ports;                                                   
             for (i = 0; i < l->n_ports; i++) {                                  
                 port = ports[i];                                                
@@ -715,7 +746,24 @@ static void m_pa_sourcelist_cb(pa_context *c,
                 /* TODO: for debug only 
                 printf("DEBUG %s %s\n", port->name, port->description);
                 */
-            }                                                                   
+            } 
+            active_port = l->active_port;                                       
+            if (active_port) {
+                active_port_key = STRING(pa_devicelist[ctr].name);                  
+                active_port_value = Py_BuildValue("(ss)",                           
+                                                  active_port->description,         
+                                                  active_port->name);               
+                PyDict_SetItem(self->input_active_ports,                           
+                               active_port_key,                                     
+                               active_port_value);                                  
+                Py_DecRef(active_port_key);                                         
+                Py_DecRef(active_port_value);                                       
+                /* TODO: for debug only                                             
+                printf("DEBUG active port %s %s\n",                                 
+                       active_port->description,                                    
+                       active_port->name);                                          
+                */                
+            }
             pa_devicelist[ctr].index = l->index;                                
             pa_devicelist[ctr].initialized = 1;                                 
             break;                                                              
