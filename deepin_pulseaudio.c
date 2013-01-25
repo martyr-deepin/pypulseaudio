@@ -732,12 +732,11 @@ static void m_pa_sinklist_cb(pa_context *c,
     pa_sink_port_info **ports  = NULL;                                          
     pa_sink_port_info *port = NULL;        
     pa_sink_port_info *active_port = NULL;
-    PyObject *channel_key = NULL;
+    PyObject *key = NULL;
     PyObject *channel_value = NULL;
-    PyObject *active_port_key = NULL;
     PyObject *active_port_value = NULL;
-    PyObject *mute_key = NULL;
     PyObject *mute_value = NULL;
+    PyObject *volume_value = NULL;
     int ctr = 0;                                                                
     int i = 0;
                                                                                 
@@ -768,11 +767,8 @@ static void m_pa_sinklist_cb(pa_context *c,
                 PyList_Append(channel_value, 
                               INT(pa_devicelist[ctr].channel_map.map[i]));
             }
-            channel_key = STRING(pa_devicelist[ctr].name);
-            PyDict_SetItem(self->output_channels, 
-                           channel_key, 
-                           channel_value);
-            Py_DecRef(channel_key);
+            key = STRING(pa_devicelist[ctr].name);
+            PyDict_SetItem(self->output_channels, key, channel_value);
             Py_DecRef(channel_value);
             ports = l->ports;   
             for (i = 0; i < l->n_ports; i++) {                                  
@@ -784,21 +780,24 @@ static void m_pa_sinklist_cb(pa_context *c,
             }                
             active_port = l->active_port;
             if (active_port) {
-                active_port_key = STRING(pa_devicelist[ctr].name);
                 active_port_value = Py_BuildValue("(ss)", 
                                                   active_port->description, 
                                                   active_port->name);
                 PyDict_SetItem(self->output_active_ports, 
-                               active_port_key, 
+                               key, 
                                active_port_value);
-                Py_DecRef(active_port_key);
                 Py_DecRef(active_port_value);
             }
-            mute_key = STRING(pa_devicelist[ctr].name);
             mute_value = l->mute ? Py_True : Py_False;
-            PyDict_SetItem(self->output_mute, mute_key, mute_value);
-            Py_DecRef(mute_key);
+            PyDict_SetItem(self->output_mute, key, mute_value);
             Py_DecRef(mute_value);
+            volume_value = PyList_New(0);
+            for (i = 0; i <= l->volume.channels; i++) {
+                PyList_Append(volume_value, INT(l->volume.values[i]));
+            }
+            PyDict_SetItem(self->output_volume, key, volume_value);
+            Py_DecRef(key);
+            Py_DecRef(volume_value);
             pa_devicelist[ctr].index = l->index;                                
             pa_devicelist[ctr].initialized = 1;                                 
             break;                                                              
@@ -817,12 +816,11 @@ static void m_pa_sourcelist_cb(pa_context *c,
     pa_source_port_info **ports = NULL;                                         
     pa_source_port_info *port = NULL;      
     pa_source_port_info *active_port = NULL;
-    PyObject *channel_key = NULL;
+    PyObject *key = NULL;
     PyObject *channel_value = NULL;
-    PyObject *active_port_key = NULL;
     PyObject *active_port_value = NULL;
-    PyObject *mute_key = NULL;
     PyObject *mute_value = NULL;
+    PyObject *volume_value = NULL;
     int ctr = 0;                                                                
     int i = 0;                                                                  
                                                                                 
@@ -847,11 +845,8 @@ static void m_pa_sourcelist_cb(pa_context *c,
                 PyList_Append(channel_value,                                            
                               INT(pa_devicelist[ctr].channel_map.map[i]));         
             }                                                                   
-            channel_key = STRING(pa_devicelist[ctr].name);                              
-            PyDict_SetItem(self->input_channels,                               
-                           channel_key,                                                 
-                           channel_value);                                              
-            Py_DecRef(channel_key);                                                     
+            key = STRING(pa_devicelist[ctr].name);                              
+            PyDict_SetItem(self->input_channels, key, channel_value);                                              
             Py_DecRef(channel_value);   
             ports = l->ports;                                                   
             for (i = 0; i < l->n_ports; i++) {                                  
@@ -863,21 +858,24 @@ static void m_pa_sourcelist_cb(pa_context *c,
             } 
             active_port = l->active_port;                                       
             if (active_port) {
-                active_port_key = STRING(pa_devicelist[ctr].name);                  
                 active_port_value = Py_BuildValue("(ss)",                           
                                                   active_port->description,         
                                                   active_port->name);               
                 PyDict_SetItem(self->input_active_ports,                           
-                               active_port_key,                                     
+                               key,                                     
                                active_port_value);                                  
-                Py_DecRef(active_port_key);                                         
                 Py_DecRef(active_port_value);                                       
             }
-            mute_key = STRING(pa_devicelist[ctr].name);                         
             mute_value = l->mute ? Py_True : Py_False;                          
-            PyDict_SetItem(self->output_mute, mute_key, mute_value);            
-            Py_DecRef(mute_key);                                                
-            Py_DecRef(mute_value);  
+            PyDict_SetItem(self->output_mute, key, mute_value);            
+            Py_DecRef(mute_value); 
+            volume_value = PyList_New(0);
+            for (i = 0; i <= l->volume.channels; i++) {
+                PyList_Append(volume_value, INT(l->volume.values[i]));
+            }
+            PyDict_SetItem(self->input_volume, key, volume_value);
+            Py_DecRef(key);
+            Py_DecRef(volume_value);
             pa_devicelist[ctr].index = l->index;                                
             pa_devicelist[ctr].initialized = 1;                                 
             break;                                                              
