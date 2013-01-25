@@ -1,0 +1,8 @@
+pypulseaudio
+============
+
+PulseAudio Python Binding
+
+install
+=======
+sudo python setup.py install
