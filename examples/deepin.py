@@ -25,5 +25,7 @@ import deepin_pulseaudio
 def test():
     deepin_pulseaudio_obj = deepin_pulseaudio.new()
     deepin_pulseaudio_obj.get_devicelist()
+    print deepin_pulseaudio_obj.get_output_portlist()
+    print deepin_pulseaudio_obj.get_input_portlist()
 
 test()
