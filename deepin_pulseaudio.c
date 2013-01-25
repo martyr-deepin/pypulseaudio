@@ -48,10 +48,12 @@ typedef struct pa_devicelist {
 typedef struct {
     PyObject_HEAD
     PyObject *dict; /* Python attributes dictionary */
-    pa_devicelist_t *pa_input_devicelist;
-    pa_devicelist_t *pa_output_devicelist;
-    PyObject *input_portlist;
-    PyObject *output_portlist;
+    pa_devicelist_t *pa_input_devices;
+    pa_devicelist_t *pa_output_devices;
+    PyObject *input_ports;
+    PyObject *output_ports;
+    PyObject *input_channels;
+    PyObject *output_channels;
 } DeepinPulseAudioObject;
 
 static PyObject *m_deepin_pulseaudio_object_constants = NULL;
@@ -245,10 +247,12 @@ static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object()
     PyObject_GC_Track(self);
 
     self->dict = NULL;
-    self->pa_input_devicelist = NULL;
-    self->pa_output_devicelist = NULL;
-    self->input_portlist = NULL;
-    self->output_portlist = NULL;
+    self->pa_input_devices = NULL;
+    self->pa_output_devices = NULL;
+    self->input_ports = NULL;
+    self->output_ports = NULL;
+    self->input_channels = NULL;
+    self->output_channels = NULL;
 
     return self;
 }
@@ -261,16 +265,23 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
     if (!self)
         return NULL;
 
-    self->pa_input_devicelist = malloc(sizeof(pa_devicelist_t) * DEVICE_NUM);
-    if (!self->pa_input_devicelist) {
+    self->pa_input_devices = malloc(sizeof(pa_devicelist_t) * DEVICE_NUM);
+    if (!self->pa_input_devices) {
         ERROR("allocation error");
         m_delete(self);
         return NULL;
     }
 
-    self->pa_output_devicelist = malloc(sizeof(pa_devicelist_t) * DEVICE_NUM);
-    if (!self->pa_output_devicelist) {
+    self->pa_output_devices = malloc(sizeof(pa_devicelist_t) * DEVICE_NUM);
+    if (!self->pa_output_devices) {
         ERROR("allocation error");
+        m_delete(self);
+        return NULL;
+    }
+
+    self->output_channels = PyDict_New();
+    if (!self->output_channels) {
+        ERROR("PyDict_New error");
         m_delete(self);
         return NULL;
     }
@@ -280,9 +291,9 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
 
 static PyObject *m_delete(DeepinPulseAudioObject *self) 
 {
-    if (self->pa_input_devicelist) {
-        free(self->pa_input_devicelist);
-        self->pa_input_devicelist = NULL;
+    if (self->pa_input_devices) {
+        free(self->pa_input_devices);
+        self->pa_input_devices = NULL;
     }
 
     Py_INCREF(Py_None);
@@ -302,8 +313,8 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
     int pa_ready = 0;                                                           
                                                                                 
     // Initialize our device lists                                              
-    memset(self->pa_input_devicelist, 0, sizeof(pa_devicelist_t) * DEVICE_NUM);                             
-    memset(self->pa_output_devicelist, 0, sizeof(pa_devicelist_t) * DEVICE_NUM);                            
+    memset(self->pa_input_devices, 0, sizeof(pa_devicelist_t) * DEVICE_NUM);                             
+    memset(self->pa_output_devices, 0, sizeof(pa_devicelist_t) * DEVICE_NUM);                            
                                                                                 
     // Create a mainloop API and connection to the default server               
     pa_ml = pa_mainloop_new();                                                  
@@ -355,7 +366,7 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
                 break;                                                          
             case 1:                                                             
                 // Now we wait for our operation to complete.  When it's        
-                // complete our pa_output_devicelist is filled out, and we move 
+                // complete our pa_output_devices is filled out, and we move 
                 // along to the next state                                      
                 if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {       
                     pa_operation_unref(pa_op);                                  
@@ -398,14 +409,14 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
 
 static PyObject *m_get_output_ports(DeepinPulseAudioObject *self) 
 {
-    Py_INCREF(self->output_portlist);
-    return self->output_portlist;
+    Py_INCREF(self->output_ports);
+    return self->output_ports;
 }
 
 static PyObject *m_get_input_ports(DeepinPulseAudioObject *self)               
 {                                                                                  
-    Py_INCREF(self->input_portlist);                                              
-    return self->input_portlist;                                                  
+    Py_INCREF(self->input_ports);                                              
+    return self->input_ports;                                                  
 }    
 
 static PyObject *m_get_output_devices(DeepinPulseAudioObject *self) 
@@ -414,19 +425,19 @@ static PyObject *m_get_output_devices(DeepinPulseAudioObject *self)
     int ctr = 0;
 
     for (ctr = 0; ctr < 16; ctr++) {                                            
-        if (!self->pa_output_devicelist[ctr].initialized) {                          
+        if (!self->pa_output_devices[ctr].initialized) {                          
             break;                                                              
         }
         PyList_Append(list, 
                       Py_BuildValue("(ssd)", 
-                                    self->pa_output_devicelist[ctr].description, 
-                                    self->pa_output_devicelist[ctr].name, 
-                                    self->pa_output_devicelist[ctr].index));
+                                    self->pa_output_devices[ctr].description, 
+                                    self->pa_output_devices[ctr].name, 
+                                    self->pa_output_devices[ctr].index));
         /*
         printf("=======[ Output Device #%d ]=======\n", ctr + 1);                 
-        printf("Description: %s\n", self->pa_output_devicelist[ctr].description);        
-        printf("Name: %s\n", self->pa_output_devicelist[ctr].name);                   
-        printf("Index: %d\n", self->pa_output_devicelist[ctr].index);                 
+        printf("Description: %s\n", self->pa_output_devices[ctr].description);        
+        printf("Name: %s\n", self->pa_output_devices[ctr].name);                   
+        printf("Index: %d\n", self->pa_output_devices[ctr].index);                 
         printf("\n");              
         */
     }   
@@ -440,19 +451,19 @@ static PyObject *m_get_input_devices(DeepinPulseAudioObject *self)
     int ctr = 0;                                                                 
                                                                                 
     for (ctr = 0; ctr < DEVICE_NUM; ctr++) {                                             
-        if (!self->pa_input_devicelist[ctr].initialized) {                           
+        if (!self->pa_input_devices[ctr].initialized) {                           
             break;                                                              
         }                                                                       
         PyList_Append(list,                                                     
                       Py_BuildValue("(ssd)",                                    
-                                    self->pa_input_devicelist[ctr].description,
-                                    self->pa_input_devicelist[ctr].name,       
-                                    self->pa_input_devicelist[ctr].index));    
+                                    self->pa_input_devices[ctr].description,
+                                    self->pa_input_devices[ctr].name,       
+                                    self->pa_input_devices[ctr].index));    
         /*                                                                      
         printf("=======[ Output Device #%d ]=======\n", ctr + 1);                 
-        printf("Description: %s\n", self->pa_input_devicelist[ctr].description);        
-        printf("Name: %s\n", self->pa_input_devicelist[ctr].name);                   
-        printf("Index: %d\n", self->pa_input_devicelist[ctr].index);                 
+        printf("Description: %s\n", self->pa_input_devices[ctr].description);        
+        printf("Name: %s\n", self->pa_input_devices[ctr].name);                   
+        printf("Index: %d\n", self->pa_input_devices[ctr].index);                 
         printf("\n");                                                           
         */                                                                      
     }                                                                           
@@ -463,7 +474,7 @@ static PyObject *m_get_input_devices(DeepinPulseAudioObject *self)
 static PyObject *m_get_output_channels(DeepinPulseAudioObject *self, 
                                        PyObject *args) 
 {
-
+    return self->output_channels;
 }
 
 // This callback gets called when our context changes state.  We really only    
@@ -500,19 +511,21 @@ static void m_pa_sinklist_cb(pa_context *c,
                              void *userdata) 
 {
     DeepinPulseAudioObject *self = userdata;
-    pa_devicelist_t *pa_devicelist = self->pa_output_devicelist;                                  
+    pa_devicelist_t *pa_devicelist = self->pa_output_devices;                                  
     pa_sink_port_info **ports  = NULL;                                          
-    pa_sink_port_info *port = NULL;                                             
+    pa_sink_port_info *port = NULL;         
+    PyObject *key = NULL;
+    PyObject *value = NULL;
     int ctr = 0;                                                                
-    int i = 0;                                                                  
+    int i = 0;
                                                                                 
     // If eol is set to a positive number, you're at the end of the list        
     if (eol > 0) {                                                              
         return;                                                                 
     }
 
-    self->output_portlist = PyList_New(0);
-    if (!self->output_portlist) {
+    self->output_ports = PyList_New(0);
+    if (!self->output_ports) {
         printf("PyList_New error");
         return;
     }
@@ -526,10 +539,23 @@ static void m_pa_sinklist_cb(pa_context *c,
         if (! pa_devicelist[ctr].initialized) {                                 
             strncpy(pa_devicelist[ctr].name, l->name, 511);                     
             strncpy(pa_devicelist[ctr].description, l->description, 255);       
+            pa_devicelist[ctr].channel_map = l->channel_map;
+            /* TODO: enum pa_channel_position */
+            value = PyList_New(0);
+            for (i = 0; i <= l->channel_map.channels; i++) {
+                PyList_Append(value, 
+                              INT(pa_devicelist[ctr].channel_map.map[i]));
+            }
+            key = STRING(pa_devicelist[ctr].name);
+            PyDict_SetItem(self->output_channels, 
+                           key, 
+                           value);
+            Py_DecRef(key);
+            Py_DecRef(value);
             ports = l->ports;   
             for (i = 0; i < l->n_ports; i++) {                                  
                 port = ports[i];   
-                PyList_Append(self->output_portlist, 
+                PyList_Append(self->output_ports, 
                               Py_BuildValue("(ss)", 
                                             port->description, 
                                             port->name));
@@ -549,7 +575,7 @@ static void m_pa_sourcelist_cb(pa_context *c,
                                void *userdata) 
 {
     DeepinPulseAudioObject *self = userdata;
-    pa_devicelist_t *pa_devicelist = self->pa_input_devicelist;                                  
+    pa_devicelist_t *pa_devicelist = self->pa_input_devices;                                  
     pa_source_port_info **ports = NULL;                                         
     pa_source_port_info *port = NULL;                                           
     int ctr = 0;                                                                
@@ -559,8 +585,8 @@ static void m_pa_sourcelist_cb(pa_context *c,
         return;                                                                 
     }
 
-    self->input_portlist = PyList_New(0);
-    if (!self->input_portlist) {
+    self->input_ports = PyList_New(0);
+    if (!self->input_ports) {
         printf("PyList_New error");
         return;
     }
@@ -572,7 +598,7 @@ static void m_pa_sourcelist_cb(pa_context *c,
             ports = l->ports;                                                   
             for (i = 0; i < l->n_ports; i++) {                                  
                 port = ports[i];                                                
-                PyList_Append(self->input_portlist,                            
+                PyList_Append(self->input_ports,                            
                               Py_BuildValue("(ss)",                             
                                             port->description,                  
                                             port->name));    
