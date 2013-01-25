@@ -42,7 +42,6 @@ typedef struct pa_devicelist {
     char name[512];                                                             
     uint32_t index;                                                             
     char description[256];        
-    pa_channel_map channel_map;
 } pa_devicelist_t;          
 
 typedef struct {
@@ -760,12 +759,11 @@ static void m_pa_sinklist_cb(pa_context *c,
         if (! pa_devicelist[ctr].initialized) {                                 
             strncpy(pa_devicelist[ctr].name, l->name, 511);                     
             strncpy(pa_devicelist[ctr].description, l->description, 255);       
-            pa_devicelist[ctr].channel_map = l->channel_map;
             /* TODO: enum pa_channel_position */
             channel_value = PyList_New(0);
             for (i = 0; i <= l->channel_map.channels; i++) {
                 PyList_Append(channel_value, 
-                              INT(pa_devicelist[ctr].channel_map.map[i]));
+                              INT(l->channel_map.map[i]));
             }
             key = STRING(pa_devicelist[ctr].name);
             PyDict_SetItem(self->output_channels, key, channel_value);
@@ -838,12 +836,11 @@ static void m_pa_sourcelist_cb(pa_context *c,
         if (!pa_devicelist[ctr].initialized) {                                 
             strncpy(pa_devicelist[ctr].name, l->name, 511);                     
             strncpy(pa_devicelist[ctr].description, l->description, 255);       
-            pa_devicelist[ctr].channel_map = l->channel_map;                    
             /* TODO: enum pa_channel_position */                                
             channel_value = PyList_New(0);                                              
             for (i = 0; i <= l->channel_map.channels; i++) {                    
                 PyList_Append(channel_value,                                            
-                              INT(pa_devicelist[ctr].channel_map.map[i]));         
+                              INT(l->channel_map.map[i]));         
             }                                                                   
             key = STRING(pa_devicelist[ctr].name);                              
             PyDict_SetItem(self->input_channels, key, channel_value);                                              
