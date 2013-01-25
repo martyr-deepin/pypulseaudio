@@ -41,7 +41,8 @@ typedef struct pa_devicelist {
     uint8_t initialized;                                                        
     char name[512];                                                             
     uint32_t index;                                                             
-    char description[256];                                                      
+    char description[256];        
+    pa_channel_map channel_map;
 } pa_devicelist_t;          
 
 typedef struct {
@@ -69,32 +70,38 @@ static PyObject *m_delete(DeepinPulseAudioObject *self);
 static void m_pa_state_cb(pa_context *c, void *userdata);                                
 static void m_pa_sinklist_cb(pa_context *c, const pa_sink_info *l, int eol, void *userdata);
 static void m_pa_sourcelist_cb(pa_context *c, const pa_source_info *l, int eol, void *userdata);
-static PyObject *m_get_devicelist(DeepinPulseAudioObject *self);
-static PyObject *m_get_output_portlist(DeepinPulseAudioObject *self);
-static PyObject *m_get_input_portlist(DeepinPulseAudioObject *self);
-static PyObject *m_get_output_devicelist(DeepinPulseAudioObject *self);
-static PyObject *m_get_input_devicelist(DeepinPulseAudioObject *self);
+static PyObject *m_get_devices(DeepinPulseAudioObject *self);
+static PyObject *m_get_output_ports(DeepinPulseAudioObject *self);
+static PyObject *m_get_input_ports(DeepinPulseAudioObject *self);
+static PyObject *m_get_output_devices(DeepinPulseAudioObject *self);
+static PyObject *m_get_input_devices(DeepinPulseAudioObject *self);
+static PyObject *m_get_output_channels(DeepinPulseAudioObject *self, 
+                                       PyObject *args);
 
 static PyMethodDef deepin_pulseaudio_object_methods[] = 
 {
     {"delete", m_delete, METH_NOARGS, "Deepin PulseAudio Destruction"}, 
-    {"get_devicelist", m_get_devicelist, METH_NOARGS, "Get Device List"}, 
-    {"get_output_portlist", 
-     m_get_output_portlist, 
+    {"get_devices", m_get_devices, METH_NOARGS, "Get Device List"}, 
+    {"get_output_ports", 
+     m_get_output_ports, 
      METH_NOARGS, 
      "Get output port list"}, 
-    {"get_input_portlist",                                                     
-     m_get_input_portlist,                                                     
+    {"get_input_ports",                                                     
+     m_get_input_ports,                                                     
      METH_NOARGS,                                                               
      "Get input port list"},    
-    {"get_output_devicelist",                                                      
-     m_get_output_devicelist,                                                      
+    {"get_output_devices",                                                      
+     m_get_output_devices,                                                      
      METH_NOARGS,                                                               
      "Get output device list"},  
-    {"get_input_devicelist",                                                   
-     m_get_input_devicelist,                                                   
+    {"get_input_devices",                                                   
+     m_get_input_devices,                                                   
      METH_NOARGS,                                                               
      "Get input device list"},      
+    {"get_output_channels", 
+     m_get_output_channels, 
+     METH_VARARGS, 
+     "Get output channels"}, 
     {NULL, NULL, 0, NULL}
 };
 
@@ -282,7 +289,7 @@ static PyObject *m_delete(DeepinPulseAudioObject *self)
     return Py_None;
 }
 
-static PyObject *m_get_devicelist(DeepinPulseAudioObject *self) 
+static PyObject *m_get_devices(DeepinPulseAudioObject *self) 
 {
     // Define our pulse audio loop and connection variables                     
     pa_mainloop *pa_ml;                                                         
@@ -389,19 +396,19 @@ static PyObject *m_get_devicelist(DeepinPulseAudioObject *self)
     return Py_True;             
 }
 
-static PyObject *m_get_output_portlist(DeepinPulseAudioObject *self) 
+static PyObject *m_get_output_ports(DeepinPulseAudioObject *self) 
 {
     Py_INCREF(self->output_portlist);
     return self->output_portlist;
 }
 
-static PyObject *m_get_input_portlist(DeepinPulseAudioObject *self)               
+static PyObject *m_get_input_ports(DeepinPulseAudioObject *self)               
 {                                                                                  
     Py_INCREF(self->input_portlist);                                              
     return self->input_portlist;                                                  
 }    
 
-static PyObject *m_get_output_devicelist(DeepinPulseAudioObject *self) 
+static PyObject *m_get_output_devices(DeepinPulseAudioObject *self) 
 {
     PyObject *list = PyList_New(0);
     int ctr = 0;
@@ -427,7 +434,7 @@ static PyObject *m_get_output_devicelist(DeepinPulseAudioObject *self)
     return list;
 }
 
-static PyObject *m_get_input_devicelist(DeepinPulseAudioObject *self)          
+static PyObject *m_get_input_devices(DeepinPulseAudioObject *self)          
 {                                                                               
     PyObject *list = PyList_New(0);                                             
     int ctr = 0;                                                                 
@@ -452,6 +459,12 @@ static PyObject *m_get_input_devicelist(DeepinPulseAudioObject *self)
                                                                                 
     return list;                                                                
 }        
+
+static PyObject *m_get_output_channels(DeepinPulseAudioObject *self, 
+                                       PyObject *args) 
+{
+
+}
 
 // This callback gets called when our context changes state.  We really only    
 // care about when it's ready or if it has failed                               
