@@ -36,20 +36,16 @@
     Py_XDECREF(tmp); \
 } while (0)
 
-// Field list is here: http://0pointer.de/lennart/projects/pulseaudio/doxygen/structpa__sink__info.html
-typedef struct pa_devicelist {                                                  
-    uint8_t initialized;                                                        
-    char name[512];                                                             
-    uint32_t index;                                                             
-    char description[256];        
-} pa_devicelist_t;          
+/* TODO: Field list is here
+ * http://0pointer.de/lennart/projects/pulseaudio/doxygen/structpa__sink__info.html
+ */
 
 typedef struct {
     PyObject_HEAD
     PyObject *dict; /* Python attributes dictionary */
     pa_context *pa_ctx;
-    pa_devicelist_t *pa_input_devices;
-    pa_devicelist_t *pa_output_devices;
+    PyObject *input_devices;
+    PyObject *output_devices;
     PyObject *input_ports;
     PyObject *output_ports;
     PyObject *input_channels;
@@ -84,6 +80,7 @@ static void m_pa_sourcelist_cb(pa_context *c,
                                const pa_source_info *l, 
                                int eol, 
                                void *userdata);
+static PyObject *m_get_cards(DeepinPulseAudioObject *self);
 static PyObject *m_get_devices(DeepinPulseAudioObject *self);
 static PyObject *m_get_output_ports(DeepinPulseAudioObject *self);
 static PyObject *m_get_input_ports(DeepinPulseAudioObject *self);
@@ -120,8 +117,9 @@ static PyObject *m_set_input_volume(DeepinPulseAudioObject *self,
 
 static PyMethodDef deepin_pulseaudio_object_methods[] = 
 {
-    {"delete", m_delete, METH_NOARGS, "Deepin PulseAudio Destruction"}, 
-    {"get_devices", m_get_devices, METH_NOARGS, "Get Device List"}, 
+    {"delete", m_delete, METH_NOARGS, "Deepin PulseAudio destruction"}, 
+    {"get_cards", m_get_cards, METH_NOARGS, "Get card list"}, 
+    {"get_devices", m_get_devices, METH_NOARGS, "Get device list"}, 
     {"get_output_ports", 
      m_get_output_ports, 
      METH_NOARGS, 
@@ -325,8 +323,8 @@ static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object()
     PyObject_GC_Track(self);
 
     self->dict = NULL;
-    self->pa_input_devices = NULL;
-    self->pa_output_devices = NULL;
+    self->input_devices = NULL;
+    self->output_devices = NULL;
     self->input_ports = NULL;
     self->output_ports = NULL;
     self->input_channels = NULL;
@@ -345,16 +343,16 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
     if (!self)
         return NULL;
 
-    self->pa_input_devices = malloc(sizeof(pa_devicelist_t) * DEVICE_NUM);
-    if (!self->pa_input_devices) {
-        ERROR("allocation error");
+    self->input_devices = PyDict_New();
+    if (!self->input_devices) {
+        ERROR("PyDict_New error");
         m_delete(self);
         return NULL;
     }
 
-    self->pa_output_devices = malloc(sizeof(pa_devicelist_t) * DEVICE_NUM);
-    if (!self->pa_output_devices) {
-        ERROR("allocation error");
+    self->output_devices = PyDict_New();
+    if (!self->output_devices) {
+        ERROR("PyDict_New error");
         m_delete(self);
         return NULL;
     }
@@ -420,18 +418,24 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
 
 static PyObject *m_delete(DeepinPulseAudioObject *self) 
 {
-    if (self->pa_output_devices) {
-        free(self->pa_output_devices);
-        self->pa_input_devices = NULL;
+    if (self->output_devices) {
+        Py_DecRef(self->output_devices);
+        self->output_devices = NULL;
     }
 
-    if (self->pa_input_devices) {
-        free(self->pa_input_devices);
-        self->pa_input_devices = NULL;
+    if (self->input_devices) {
+        Py_DecRef(self->input_devices);
+        self->input_devices = NULL;
     }
 
     Py_INCREF(Py_None);
     return Py_None;
+}
+
+static PyObject *m_get_cards(DeepinPulseAudioObject *self) 
+{
+    Py_INCREF(Py_True);
+    return Py_True;
 }
 
 static PyObject *m_get_devices(DeepinPulseAudioObject *self) 
@@ -445,10 +449,6 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
     // We'll need these state variables to keep track of our requests           
     int state = 0;                                                              
     int pa_ready = 0;                                                           
-                                                                                
-    // Initialize our device lists                                              
-    memset(self->pa_input_devices, 0, sizeof(pa_devicelist_t) * DEVICE_NUM);                             
-    memset(self->pa_output_devices, 0, sizeof(pa_devicelist_t) * DEVICE_NUM);                            
                                                                                 
     // Create a mainloop API and connection to the default server               
     pa_ml = pa_mainloop_new();                                                  
@@ -567,40 +567,12 @@ static PyObject *m_get_input_ports(DeepinPulseAudioObject *self)
 
 static PyObject *m_get_output_devices(DeepinPulseAudioObject *self) 
 {
-    PyObject *list = PyList_New(0);
-    int ctr = 0;
-
-    for (ctr = 0; ctr < DEVICE_NUM; ctr++) {                                            
-        if (!self->pa_output_devices[ctr].initialized) {                          
-            break;                                                              
-        }
-        PyList_Append(list, 
-                      Py_BuildValue("(ssn)", 
-                                    self->pa_output_devices[ctr].description, 
-                                    self->pa_output_devices[ctr].name, 
-                                    self->pa_output_devices[ctr].index));
-    }   
-
-    return list;
+    return self->output_devices;
 }
 
 static PyObject *m_get_input_devices(DeepinPulseAudioObject *self)          
 {                                                                               
-    PyObject *list = PyList_New(0);                                             
-    int ctr = 0;                                                                 
-                                                                                
-    for (ctr = 0; ctr < DEVICE_NUM; ctr++) {                                             
-        if (!self->pa_input_devices[ctr].initialized) {                           
-            break;                                                              
-        }                                                                       
-        PyList_Append(list,                                                     
-                      Py_BuildValue("(ssn)",                                    
-                                    self->pa_input_devices[ctr].description,
-                                    self->pa_input_devices[ctr].name,       
-                                    self->pa_input_devices[ctr].index));    
-    }                                                                           
-                                                                                
-    return list;                                                                
+    return self->input_devices;                                                                
 }        
 
 static PyObject *m_get_output_channels(DeepinPulseAudioObject *self, 
@@ -1108,51 +1080,46 @@ static void m_pa_sinklist_cb(pa_context *c,
     // contents into it and we're done.  If we receive more than 16 devices,    
     // they're going to get dropped.  You could make this dynamically allocate  
     // space for the device list, but this is a simple example.                 
-    for (ctr = 0; ctr < DEVICE_NUM; ctr++) {                                            
-        if (!self->pa_output_devices[ctr].initialized) {                                 
-            strncpy(self->pa_output_devices[ctr].name, l->name, 511);                     
-            strncpy(self->pa_output_devices[ctr].description, l->description, 255);       
-            /* TODO: enum pa_channel_position */
-            channel_value = PyList_New(0);
-            for (i = 0; i <= l->channel_map.channels; i++) {
-                PyList_Append(channel_value, 
-                              INT(l->channel_map.map[i]));
-            }
-            key = STRING(self->pa_output_devices[ctr].name);
-            PyDict_SetItem(self->output_channels, key, channel_value);
-            Py_DecRef(channel_value);
-            ports = l->ports;   
-            for (i = 0; i < l->n_ports; i++) {                                  
-                port = ports[i];   
-                PyList_Append(self->output_ports, 
-                              Py_BuildValue("(ss)", 
-                                            port->description, 
-                                            port->name)); 
-            }                
-            active_port = l->active_port;
-            if (active_port) {
-                active_port_value = Py_BuildValue("(ss)", 
-                                                  active_port->description, 
-                                                  active_port->name);
-                PyDict_SetItem(self->output_active_ports, 
-                               key, 
-                               active_port_value);
-                Py_DecRef(active_port_value);
-            }
-            mute_value = l->mute ? Py_True : Py_False;
-            PyDict_SetItem(self->output_mute, key, mute_value);
-            Py_DecRef(mute_value);
-            volume_value = PyList_New(0);
-            for (i = 0; i <= l->volume.channels; i++) {
-                PyList_Append(volume_value, INT(l->volume.values[i]));
-            }
-            PyDict_SetItem(self->output_volume, key, volume_value);
-            Py_DecRef(key);
-            Py_DecRef(volume_value);
-            self->pa_output_devices[ctr].index = l->index;                                
-            self->pa_output_devices[ctr].initialized = 1;                                 
-            break;                                                              
-        }                                                                       
+    for (ctr = 0; ctr < DEVICE_NUM; ctr++) { 
+        key = STRING(l->name);
+        if (PyDict_Contains(self->output_devices, STRING(l->name))) {
+            ctr++;
+            continue;
+        }
+        PyDict_SetItem(self->output_devices, 
+                       key,  
+                       Py_BuildValue("(ns)", l->index, l->description));
+        channel_value = PyList_New(0);
+        for (i = 0; i <= l->channel_map.channels; i++) {
+            PyList_Append(channel_value, INT(l->channel_map.map[i]));
+        }
+        PyDict_SetItem(self->output_channels, key, channel_value);
+        Py_DecRef(channel_value);
+        ports = l->ports;   
+        for (i = 0; i < l->n_ports; i++) {                                  
+            port = ports[i];   
+            PyList_Append(self->output_ports, 
+                          Py_BuildValue("(ss)", port->description, port->name)
+                         ); 
+        }                
+        active_port = l->active_port;
+        if (active_port) {
+            active_port_value = Py_BuildValue("(ss)", 
+                                              active_port->description, 
+                                              active_port->name);
+            PyDict_SetItem(self->output_active_ports, key, active_port_value);
+            Py_DecRef(active_port_value);
+        }
+        mute_value = l->mute ? Py_True : Py_False;
+        PyDict_SetItem(self->output_mute, key, mute_value);
+        Py_DecRef(mute_value);
+        volume_value = PyList_New(0);
+        for (i = 0; i <= l->volume.channels; i++) {
+            PyList_Append(volume_value, INT(l->volume.values[i]));
+        }
+        PyDict_SetItem(self->output_volume, key, volume_value);
+        Py_DecRef(key);
+        Py_DecRef(volume_value);
     }                                                                           
 }                   
 
@@ -1185,49 +1152,45 @@ static void m_pa_sourcelist_cb(pa_context *c,
     }
                                                                                 
     for (ctr = 0; ctr < DEVICE_NUM; ctr++) {                                            
-        if (!self->pa_input_devices[ctr].initialized) {                                 
-            strncpy(self->pa_input_devices[ctr].name, l->name, 511);                     
-            strncpy(self->pa_input_devices[ctr].description, l->description, 255);       
-            /* TODO: enum pa_channel_position */                                
-            channel_value = PyList_New(0);                                              
-            for (i = 0; i <= l->channel_map.channels; i++) {                    
-                PyList_Append(channel_value,                                            
-                              INT(l->channel_map.map[i]));         
-            }                                                                   
-            key = STRING(self->pa_input_devices[ctr].name);                              
-            PyDict_SetItem(self->input_channels, key, channel_value);                                              
-            Py_DecRef(channel_value);   
-            ports = l->ports;                                                   
-            for (i = 0; i < l->n_ports; i++) {                                  
-                port = ports[i];                                                
-                PyList_Append(self->input_ports,                            
-                              Py_BuildValue("(ss)",                             
-                                            port->description,                  
-                                            port->name));    
-            } 
-            active_port = l->active_port;                                       
-            if (active_port) {
-                active_port_value = Py_BuildValue("(ss)",                           
-                                                  active_port->description,         
-                                                  active_port->name);               
-                PyDict_SetItem(self->input_active_ports,                           
-                               key,                                     
-                               active_port_value);                                  
-                Py_DecRef(active_port_value);                                       
-            }
-            mute_value = l->mute ? Py_True : Py_False;                          
-            PyDict_SetItem(self->output_mute, key, mute_value);            
-            Py_DecRef(mute_value); 
-            volume_value = PyList_New(0);
-            for (i = 0; i <= l->volume.channels; i++) {
-                PyList_Append(volume_value, INT(l->volume.values[i]));
-            }
-            PyDict_SetItem(self->input_volume, key, volume_value);
-            Py_DecRef(key);
-            Py_DecRef(volume_value);
-            self->pa_input_devices[ctr].index = l->index;                                
-            self->pa_input_devices[ctr].initialized = 1;                                 
-            break;                                                              
-        }                                                                       
+        key = STRING(l->name);
+        if (PyDict_Contains(self->input_devices, key)) {
+            ctr++;
+            continue;
+        }
+        PyDict_SetItem(self->input_devices, 
+                       key, 
+                       Py_BuildValue("ns", l->index, l->description));    
+        channel_value = PyList_New(0);                                              
+        for (i = 0; i <= l->channel_map.channels; i++) {                    
+            PyList_Append(channel_value, INT(l->channel_map.map[i]));         
+        }                                                                   
+        key = STRING(l->name);                              
+        PyDict_SetItem(self->input_channels, key, channel_value);                                              
+        Py_DecRef(channel_value);   
+        ports = l->ports;                                                   
+        for (i = 0; i < l->n_ports; i++) {                                  
+            port = ports[i];                                                
+            PyList_Append(self->input_ports,                            
+                          Py_BuildValue("(ss)", port->description, port->name)
+                         );    
+        } 
+        active_port = l->active_port;                                       
+        if (active_port) {
+            active_port_value = Py_BuildValue("(ss)",                           
+                                              active_port->description,         
+                                              active_port->name);               
+            PyDict_SetItem(self->input_active_ports, key, active_port_value);                                  
+            Py_DecRef(active_port_value);                                       
+        }
+        mute_value = l->mute ? Py_True : Py_False;                          
+        PyDict_SetItem(self->output_mute, key, mute_value);            
+        Py_DecRef(mute_value); 
+        volume_value = PyList_New(0);
+        for (i = 0; i <= l->volume.channels; i++) {
+            PyList_Append(volume_value, INT(l->volume.values[i]));
+        }
+        PyDict_SetItem(self->input_volume, key, volume_value);
+        Py_DecRef(key);
+        Py_DecRef(volume_value);
     }                                                                           
 }                   
