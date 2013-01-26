@@ -1013,197 +1013,38 @@ static PyObject *m_set_output_volume(DeepinPulseAudioObject *self,
                                      PyObject *args) 
 {
     int index = 0;
-    int volume_value = 0;
-    PyObject *key = NULL;
-    PyObject *keys = NULL;
-    PyObject *volumes = NULL;
-    pa_cvolume *volume = NULL;
-    pa_mainloop *pa_ml = NULL;                                                         
-    pa_mainloop_api *pa_mlapi = NULL;                                                  
-    pa_context *pa_ctx = NULL;                                                         
-    pa_operation *pa_op = NULL;   
-    int state = 0;
-    int pa_ready = 0;
-    int i = 0;
+    int volume = 0;
+    char buffer[256] = {'\0'}; 
 
-    if (!PyArg_ParseTuple(args, "nn", &index, &volume_value)) {
+    if (!PyArg_ParseTuple(args, "nn", &index, &volume)) {
         ERROR("invalid arguments to set_output_volume");
         return NULL;
     }
-                                                                                
-    pa_ml = pa_mainloop_new();                                                  
-    pa_mlapi = pa_mainloop_get_api(pa_ml);                                      
-    pa_ctx = pa_context_new(pa_mlapi, "deepin");                                
-                                                                                
-    pa_context_connect(pa_ctx, NULL, 0, NULL);
-    pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);            
 
-    for (;;) {                                                                  
-        if (pa_ready == 0) {                                                    
-            pa_mainloop_iterate(pa_ml, 1, NULL);                                
-            continue;                                                           
-        }                                                                       
-        if (pa_ready == 2) {                                                    
-            printf("DEBUG fail to connect to the server\n");                    
-            pa_context_disconnect(pa_ctx);                                      
-            pa_context_unref(pa_ctx);                                           
-            Py_DecRef(pa_ctx);                                                  
-            pa_mainloop_free(pa_ml);                                            
-            Py_INCREF(Py_False);                                                    
-            return Py_False;                                                    
-        }                                                                       
-        switch (state) {                                                        
-            case 0:
-                volume = malloc(sizeof(pa_cvolume));
-                if (volume) {
-                    keys = PyDict_Keys(self->output_volume);
-                    if (PyList_Check(keys)) {
-                        key = PyList_GetItem(keys, index);
-                        if (key) {
-                            volumes = PyDict_GetItem(self->output_volume, 
-                                PyList_GetItem(keys, index));
-                            if (PyList_Check(volumes)) {
-                                pa_cvolume_set(volume, 
-                                               PyList_Size(volumes), 
-                                               volume_value);
-                                pa_op = pa_context_set_sink_volume_by_index(
-                                    pa_ctx, index, volume, NULL, NULL);
-                            }
-                        }
-                    }
-                }
-                state++;                                                        
-                break;                                                          
-            case 1:                                                             
-                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {                    
-                    pa_operation_unref(pa_op);                                  
-                    pa_context_disconnect(pa_ctx);                              
-                    pa_context_unref(pa_ctx);                                   
-                    pa_mainloop_free(pa_ml);                                    
-                    if (volume) {
-                        free(volume);
-                        volume = NULL;
-                    }
-                    Py_INCREF(Py_True);                                             
-                    return Py_True;                                             
-                }                                                               
-                break;                                                          
-            default:                                                            
-                Py_INCREF(Py_False);                                                
-                return Py_False;                                                
-        }                                                                       
-        pa_mainloop_iterate(pa_ml, 1, NULL);                                    
-    }                                    
-
-    Py_INCREF(Py_False);
-    return Py_False;
+    sprintf(buffer, "pacmd set-sink-volume %d %d", index, volume);
+    system(buffer);
+    
+    Py_INCREF(Py_True);
+    return Py_True;
 }
 
 static PyObject *m_set_input_volume(DeepinPulseAudioObject *self, 
                                     PyObject *args) 
 {
     int index = 0;
-    int volume_value = 0;
-    PyObject *key = NULL;
-    PyObject *keys = NULL;
-    PyObject *volumes = NULL;
-    pa_cvolume *volume = NULL;
-    pa_mainloop *pa_ml = NULL;                                                         
-    pa_mainloop_api *pa_mlapi = NULL;                                                  
-    pa_context *pa_ctx = NULL;                                                         
-    pa_operation *pa_op = NULL;   
-    int state = 0;
-    int pa_ready = 0;
-    int i = 0;
+    int volume = 0;
+    char buffer[256] = {'\0'};
 
-    if (!PyArg_ParseTuple(args, "nn", &index, &volume_value)) {
+    if (!PyArg_ParseTuple(args, "nn", &index, &volume)) {
         ERROR("invalid arguments to set_input_volume");
         return NULL;
     }
-                                                                                
-    pa_ml = pa_mainloop_new();                                                  
-    pa_mlapi = pa_mainloop_get_api(pa_ml);                                      
-    pa_ctx = pa_context_new(pa_mlapi, "deepin");                                
-                                                                                
-    pa_context_connect(pa_ctx, NULL, 0, NULL);
-    pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);            
 
-    for (;;) {                                                                  
-        if (pa_ready == 0) {                                                    
-            pa_mainloop_iterate(pa_ml, 1, NULL);                                
-            continue;                                                           
-        }                                                                       
-        if (pa_ready == 2) {                                                    
-            printf("DEBUG fail to connect to the server\n");                    
-            pa_context_disconnect(pa_ctx);                                      
-            pa_context_unref(pa_ctx);                                           
-            Py_DecRef(pa_ctx);                                                  
-            pa_mainloop_free(pa_ml);                                            
-            Py_INCREF(Py_False);                                                    
-            return Py_False;                                                    
-        }                                                                       
-        switch (state) {                                                        
-            case 0:
-                volume = malloc(sizeof(pa_cvolume));
-                if (!volume) {
-                    Py_INCREF(Py_False);
-                    return Py_False;
-                }
-                keys = PyDict_Keys(self->input_volume);
-                if (!PyList_Check(keys)) {
-                    free(volume);
-                    volume = NULL;
-                    Py_INCREF(Py_False);
-                    return Py_False;
-                }
-                key = PyList_GetItem(keys, index);
-                if (!key) {
-                    free(volume);
-                    volume = NULL;
-                    Py_INCREF(Py_False);
-                    return Py_False;
-                }
-                volumes = PyDict_GetItem(self->input_volume, 
-                                         PyList_GetItem(keys, index));
-                if (!PyList_Check(volumes)) {
-                    free(volume);
-                    volume = NULL;
-                    Py_INCREF(Py_False);
-                    return Py_False;
-                }
-                volume->channels = PyList_Size(volumes);
-                for (i = 0; i <= volume->channels; i++) 
-                    volume->values[i] = volume_value;
-                pa_op = pa_context_set_source_volume_by_index(pa_ctx, 
-                                                              index, 
-                                                              volume, 
-                                                              NULL, 
-                                                              NULL);
-                state++;                                                        
-                break;                                                          
-            case 1:                                                             
-                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {                    
-                    pa_operation_unref(pa_op);                                  
-                    pa_context_disconnect(pa_ctx);                              
-                    pa_context_unref(pa_ctx);                                   
-                    pa_mainloop_free(pa_ml);                                    
-                    if (volume) {
-                        free(volume);
-                        volume = NULL;
-                    }
-                    Py_INCREF(Py_True);                                             
-                    return Py_True;                                             
-                }                                                               
-                break;                                                          
-            default:                                                            
-                Py_INCREF(Py_False);                                                
-                return Py_False;                                                
-        }                                                                       
-        pa_mainloop_iterate(pa_ml, 1, NULL);                                    
-    }                                    
-
-    Py_INCREF(Py_False);
-    return Py_False;
+    sprintf(buffer, "pacmd set-source-volume %d %d", index, volume);
+    system(buffer);
+                                                                                
+    Py_INCREF(Py_True);
+    return Py_True;
 }
 
 // This callback gets called when our context changes state.  We really only    
