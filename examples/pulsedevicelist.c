@@ -8,7 +8,6 @@ typedef struct pa_devicelist {
     char name[512];
     uint32_t index;
     char description[256];
-    pa_channel_map channel_map;
 } pa_devicelist_t;
 
 void pa_state_cb(pa_context *c, void *userdata);
@@ -206,11 +205,9 @@ void pa_sinklist_cb(pa_context *c, const pa_sink_info *l, int eol, void *userdat
     for (ctr = 0; ctr < 16; ctr++) {
         if (! pa_devicelist[ctr].initialized) {
             strncpy(pa_devicelist[ctr].name, l->name, 511);
-            printf("DEBUG name %s\n", pa_devicelist[ctr].name);
+            printf("DEBUG sink name %s\n", pa_devicelist[ctr].name);
             strncpy(pa_devicelist[ctr].description, l->description, 255);
-            pa_devicelist[ctr].channel_map = l->channel_map;
-            printf("DEBUG channel count %d\n", 
-                   pa_devicelist[ctr].channel_map.channels);
+            printf("DEBUG channel count %d\n", l->channel_map.channels);
             for (i = 0; i <= l->channel_map.channels; i++) {
                 printf("DEBUG channel map %d\n", l->channel_map.map[i]);
             }

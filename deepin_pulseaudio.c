@@ -1055,41 +1055,23 @@ static PyObject *m_set_output_volume(DeepinPulseAudioObject *self,
         switch (state) {                                                        
             case 0:
                 volume = malloc(sizeof(pa_cvolume));
-                if (!volume) {
-                    Py_INCREF(Py_False);
-                    return Py_False;
+                if (volume) {
+                    keys = PyDict_Keys(self->output_volume);
+                    if (PyList_Check(keys)) {
+                        key = PyList_GetItem(keys, index);
+                        if (key) {
+                            volumes = PyDict_GetItem(self->output_volume, 
+                                PyList_GetItem(keys, index));
+                            if (PyList_Check(volumes)) {
+                                pa_cvolume_set(volume, 
+                                               PyList_Size(volumes), 
+                                               volume_value);
+                                pa_op = pa_context_set_sink_volume_by_index(
+                                    pa_ctx, index, volume, NULL, NULL);
+                            }
+                        }
+                    }
                 }
-                keys = PyDict_Keys(self->output_volume);
-                if (!PyList_Check(keys)) {
-                    free(volume);
-                    volume = NULL;
-                    Py_INCREF(Py_False);
-                    return Py_False;
-                }
-                key = PyList_GetItem(keys, index);
-                if (!key) {
-                    free(volume);
-                    volume = NULL;
-                    Py_INCREF(Py_False);
-                    return Py_False;
-                }
-                volumes = PyDict_GetItem(self->output_volume, 
-                                         PyList_GetItem(keys, index));
-                if (!PyList_Check(volumes)) {
-                    free(volume);
-                    volume = NULL;
-                    Py_INCREF(Py_False);
-                    return Py_False;
-                }
-                volume->channels = PyList_Size(volumes);
-                for (i = 0; i < volume->channels; i++) 
-                    volume->values[i] = volume_value;
-                volume->values[i + 1] = 0;
-                pa_op = pa_context_set_sink_input_volume(pa_ctx, 
-                                                            index, 
-                                                            volume, 
-                                                            NULL, 
-                                                            NULL);
                 state++;                                                        
                 break;                                                          
             case 1:                                                             
