@@ -24,10 +24,8 @@ import deepin_pulseaudio
 
 def test():
     deepin_pulseaudio_obj = deepin_pulseaudio.new()
-    deepin_pulseaudio_obj.get_devices()
     print "========get_output_ports testcase========"
     print deepin_pulseaudio_obj.get_output_ports()
-    '''
     print "========get_input_ports testcase========"
     print deepin_pulseaudio_obj.get_input_ports()
     print "========get_output_devices testcase========"
@@ -52,8 +50,7 @@ def test():
     print deepin_pulseaudio_obj.get_output_volume("")
     print "========get_input_volume testcase========"
     print deepin_pulseaudio_obj.get_input_volume("")
-    '''
     print "========set_output_active_port testcase========"
-    print deepin_pulseaudio_obj.set_output_active_port(0)
+    print deepin_pulseaudio_obj.set_output_active_port(1)
 
 test()

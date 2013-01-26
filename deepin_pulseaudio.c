@@ -36,6 +36,11 @@
     Py_XDECREF(tmp); \
 } while (0)
 
+typedef enum {
+    PORT_DESC = 0, 
+    PORT_NAME = 1,
+} OUTPUT_PORT;
+
 // Field list is here: http://0pointer.de/lennart/projects/pulseaudio/doxygen/structpa__sink__info.html
 typedef struct pa_devicelist {                                                  
     uint8_t initialized;                                                        
@@ -391,7 +396,9 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
         m_delete(self);                                                         
         return NULL;                                                            
     }       
-    
+
+    m_get_devices(self);
+
     return self;
 }
 
@@ -515,6 +522,7 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
 static PyObject *m_get_output_ports(DeepinPulseAudioObject *self) 
 {
     if (self->output_ports) {
+        Py_INCREF(self->output_ports);
         return self->output_ports;
     } else {
         Py_INCREF(Py_None);
@@ -525,6 +533,7 @@ static PyObject *m_get_output_ports(DeepinPulseAudioObject *self)
 static PyObject *m_get_input_ports(DeepinPulseAudioObject *self)               
 {                                                                                  
     if (self->input_ports) {
+        Py_INCREF(self->input_ports);
         return self->input_ports;
     } else {
         Py_INCREF(Py_None);
@@ -537,7 +546,7 @@ static PyObject *m_get_output_devices(DeepinPulseAudioObject *self)
     PyObject *list = PyList_New(0);
     int ctr = 0;
 
-    for (ctr = 0; ctr < 16; ctr++) {                                            
+    for (ctr = 0; ctr < DEVICE_NUM; ctr++) {                                            
         if (!self->pa_output_devices[ctr].initialized) {                          
             break;                                                              
         }
@@ -580,10 +589,12 @@ static PyObject *m_get_output_channels(DeepinPulseAudioObject *self,
         return NULL;
     }
     
-    if (PyDict_Contains(self->output_channels, STRING(device))) 
+    if (PyDict_Contains(self->output_channels, STRING(device))) { 
         return PyDict_GetItemString(self->output_channels, device);
-    else
+    } else {
+        Py_INCREF(self->output_channels);
         return self->output_channels;
+    }
 }
 
 static PyObject *m_get_input_channels(DeepinPulseAudioObject *self,            
@@ -596,10 +607,12 @@ static PyObject *m_get_input_channels(DeepinPulseAudioObject *self,
         return NULL;                                                            
     } 
                                                                                 
-    if (PyDict_Contains(self->input_channels, STRING(device)))                 
-        return PyDict_GetItemString(self->input_channels, device);             
-    else                                                                        
-        return self->input_channels;                                           
+    if (PyDict_Contains(self->input_channels, STRING(device))) {
+        return PyDict_GetItemString(self->input_channels, device);
+    } else {                                                      
+        Py_INCREF(self->input_channels);
+        return self->input_channels;                    
+    }
 }             
 
 static PyObject *m_get_output_active_ports(DeepinPulseAudioObject *self,        
@@ -612,10 +625,12 @@ static PyObject *m_get_output_active_ports(DeepinPulseAudioObject *self,
         return NULL;                                                            
     }                                                                           
                                                                                 
-    if (PyDict_Contains(self->output_active_ports, STRING(device)))                 
-        return PyDict_GetItemString(self->output_active_ports, device);             
-    else                                                                        
-        return self->output_active_ports;                                           
+    if (PyDict_Contains(self->output_active_ports, STRING(device))) {    
+        return PyDict_GetItemString(self->output_active_ports, device);
+    } else {                                                               
+        Py_INCREF(self->output_active_ports);
+        return self->output_active_ports;    
+    }
 }           
 
 static PyObject *m_get_input_active_ports(DeepinPulseAudioObject *self,           
@@ -628,10 +643,12 @@ static PyObject *m_get_input_active_ports(DeepinPulseAudioObject *self,
         return NULL;                                                               
     }                                                                              
                                                                                    
-    if (PyDict_Contains(self->input_active_ports, STRING(device)))                     
-        return PyDict_GetItemString(self->input_active_ports, device);                 
-    else                                                                           
-        return self->input_active_ports;                                               
+    if (PyDict_Contains(self->input_active_ports, STRING(device))) {                    
+        return PyDict_GetItemString(self->input_active_ports, device);
+    } else {                                                               
+        Py_INCREF(self->input_active_ports);
+        return self->input_active_ports; 
+    }
 }                
 
 static PyObject *m_get_output_mute(DeepinPulseAudioObject *self, PyObject *args) 
@@ -704,7 +721,7 @@ static PyObject *m_set_output_active_port(DeepinPulseAudioObject *self,
                                           PyObject *args) 
 {
     int index = 0;
-    PyObject *port_item = NULL;
+    PyObject *port_tuple = NULL;
     char *port = NULL;
 
     if (!PyArg_ParseTuple(args, "n", &index)) {
@@ -712,11 +729,14 @@ static PyObject *m_set_output_active_port(DeepinPulseAudioObject *self,
         return NULL;
     }
 
-    port_item = PyList_GetItem(self->output_ports, index);
-    printf("DEBUG %d\n", PyTuple_Size(port_item));
-    port = PyString_AsString(PyTuple_GetItem(port_item, 1));
-    printf("DEBUG %s\n", port);
-
+    port_tuple = PyList_GetItem(self->output_ports, index);
+    if (!PyTuple_Check(port_tuple)) {
+        Py_INCREF(Py_False);
+        return Py_False;
+    }
+    
+    port = PyString_AsString(PyTuple_GetItem(port_tuple, PORT_NAME));
+    /* FIXME: try to set active port but failed :( */
     pa_context_set_sink_port_by_index(self->pa_ctx, index, port, NULL, NULL);
     Py_INCREF(Py_True);
     return Py_True;
