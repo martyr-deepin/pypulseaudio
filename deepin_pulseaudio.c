@@ -420,6 +420,11 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
 
 static PyObject *m_delete(DeepinPulseAudioObject *self) 
 {
+    if (self->pa_output_devices) {
+        free(self->pa_output_devices);
+        self->pa_input_devices = NULL;
+    }
+
     if (self->pa_input_devices) {
         free(self->pa_input_devices);
         self->pa_input_devices = NULL;
@@ -570,7 +575,7 @@ static PyObject *m_get_output_devices(DeepinPulseAudioObject *self)
             break;                                                              
         }
         PyList_Append(list, 
-                      Py_BuildValue("(ssd)", 
+                      Py_BuildValue("(ssn)", 
                                     self->pa_output_devices[ctr].description, 
                                     self->pa_output_devices[ctr].name, 
                                     self->pa_output_devices[ctr].index));
@@ -589,7 +594,7 @@ static PyObject *m_get_input_devices(DeepinPulseAudioObject *self)
             break;                                                              
         }                                                                       
         PyList_Append(list,                                                     
-                      Py_BuildValue("(ssd)",                                    
+                      Py_BuildValue("(ssn)",                                    
                                     self->pa_input_devices[ctr].description,
                                     self->pa_input_devices[ctr].name,       
                                     self->pa_input_devices[ctr].index));    
@@ -1009,6 +1014,7 @@ static PyObject *m_set_output_volume(DeepinPulseAudioObject *self,
 {
     int index = 0;
     int volume_value = 0;
+    PyObject *key = NULL;
     PyObject *keys = NULL;
     PyObject *volumes = NULL;
     pa_cvolume *volume = NULL;
@@ -1060,6 +1066,13 @@ static PyObject *m_set_output_volume(DeepinPulseAudioObject *self,
                     Py_INCREF(Py_False);
                     return Py_False;
                 }
+                key = PyList_GetItem(keys, index);
+                if (!key) {
+                    free(volume);
+                    volume = NULL;
+                    Py_INCREF(Py_False);
+                    return Py_False;
+                }
                 volumes = PyDict_GetItem(self->output_volume, 
                                          PyList_GetItem(keys, index));
                 if (!PyList_Check(volumes)) {
@@ -1072,7 +1085,7 @@ static PyObject *m_set_output_volume(DeepinPulseAudioObject *self,
                 for (i = 0; i < volume->channels; i++) 
                     volume->values[i] = volume_value;
                 volume->values[i + 1] = 0;
-                pa_op = pa_context_set_sink_volume_by_index(pa_ctx, 
+                pa_op = pa_context_set_sink_input_volume(pa_ctx, 
                                                             index, 
                                                             volume, 
                                                             NULL, 
@@ -1109,6 +1122,7 @@ static PyObject *m_set_input_volume(DeepinPulseAudioObject *self,
 {
     int index = 0;
     int volume_value = 0;
+    PyObject *key = NULL;
     PyObject *keys = NULL;
     PyObject *volumes = NULL;
     pa_cvolume *volume = NULL;
@@ -1155,6 +1169,13 @@ static PyObject *m_set_input_volume(DeepinPulseAudioObject *self,
                 }
                 keys = PyDict_Keys(self->input_volume);
                 if (!PyList_Check(keys)) {
+                    free(volume);
+                    volume = NULL;
+                    Py_INCREF(Py_False);
+                    return Py_False;
+                }
+                key = PyList_GetItem(keys, index);
+                if (!key) {
                     free(volume);
                     volume = NULL;
                     Py_INCREF(Py_False);
@@ -1237,7 +1258,6 @@ static void m_pa_sinklist_cb(pa_context *c,
                              void *userdata) 
 {
     DeepinPulseAudioObject *self = userdata;
-    pa_devicelist_t *pa_devicelist = self->pa_output_devices;                                  
     pa_sink_port_info **ports  = NULL;                                          
     pa_sink_port_info *port = NULL;        
     pa_sink_port_info *active_port = NULL;
@@ -1266,16 +1286,16 @@ static void m_pa_sinklist_cb(pa_context *c,
     // they're going to get dropped.  You could make this dynamically allocate  
     // space for the device list, but this is a simple example.                 
     for (ctr = 0; ctr < DEVICE_NUM; ctr++) {                                            
-        if (! pa_devicelist[ctr].initialized) {                                 
-            strncpy(pa_devicelist[ctr].name, l->name, 511);                     
-            strncpy(pa_devicelist[ctr].description, l->description, 255);       
+        if (!self->pa_output_devices[ctr].initialized) {                                 
+            strncpy(self->pa_output_devices[ctr].name, l->name, 511);                     
+            strncpy(self->pa_output_devices[ctr].description, l->description, 255);       
             /* TODO: enum pa_channel_position */
             channel_value = PyList_New(0);
             for (i = 0; i <= l->channel_map.channels; i++) {
                 PyList_Append(channel_value, 
                               INT(l->channel_map.map[i]));
             }
-            key = STRING(pa_devicelist[ctr].name);
+            key = STRING(self->pa_output_devices[ctr].name);
             PyDict_SetItem(self->output_channels, key, channel_value);
             Py_DecRef(channel_value);
             ports = l->ports;   
@@ -1306,8 +1326,8 @@ static void m_pa_sinklist_cb(pa_context *c,
             PyDict_SetItem(self->output_volume, key, volume_value);
             Py_DecRef(key);
             Py_DecRef(volume_value);
-            pa_devicelist[ctr].index = l->index;                                
-            pa_devicelist[ctr].initialized = 1;                                 
+            self->pa_output_devices[ctr].index = l->index;                                
+            self->pa_output_devices[ctr].initialized = 1;                                 
             break;                                                              
         }                                                                       
     }                                                                           
@@ -1320,7 +1340,6 @@ static void m_pa_sourcelist_cb(pa_context *c,
                                void *userdata) 
 {
     DeepinPulseAudioObject *self = userdata;
-    pa_devicelist_t *pa_devicelist = self->pa_input_devices;                                  
     pa_source_port_info **ports = NULL;                                         
     pa_source_port_info *port = NULL;      
     pa_source_port_info *active_port = NULL;
@@ -1343,16 +1362,16 @@ static void m_pa_sourcelist_cb(pa_context *c,
     }
                                                                                 
     for (ctr = 0; ctr < DEVICE_NUM; ctr++) {                                            
-        if (!pa_devicelist[ctr].initialized) {                                 
-            strncpy(pa_devicelist[ctr].name, l->name, 511);                     
-            strncpy(pa_devicelist[ctr].description, l->description, 255);       
+        if (!self->pa_input_devices[ctr].initialized) {                                 
+            strncpy(self->pa_input_devices[ctr].name, l->name, 511);                     
+            strncpy(self->pa_input_devices[ctr].description, l->description, 255);       
             /* TODO: enum pa_channel_position */                                
             channel_value = PyList_New(0);                                              
             for (i = 0; i <= l->channel_map.channels; i++) {                    
                 PyList_Append(channel_value,                                            
                               INT(l->channel_map.map[i]));         
             }                                                                   
-            key = STRING(pa_devicelist[ctr].name);                              
+            key = STRING(self->pa_input_devices[ctr].name);                              
             PyDict_SetItem(self->input_channels, key, channel_value);                                              
             Py_DecRef(channel_value);   
             ports = l->ports;                                                   
@@ -1383,8 +1402,8 @@ static void m_pa_sourcelist_cb(pa_context *c,
             PyDict_SetItem(self->input_volume, key, volume_value);
             Py_DecRef(key);
             Py_DecRef(volume_value);
-            pa_devicelist[ctr].index = l->index;                                
-            pa_devicelist[ctr].initialized = 1;                                 
+            self->pa_input_devices[ctr].index = l->index;                                
+            self->pa_input_devices[ctr].initialized = 1;                                 
             break;                                                              
         }                                                                       
     }                                                                           
