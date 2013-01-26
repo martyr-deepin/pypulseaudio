@@ -54,14 +54,22 @@ def test():
     print "========get_input_volume testcase========"
     print deepin_pulseaudio_obj.get_input_volume("")
     print "========set_output_active_port testcase========"
+    '''
+    @param output device index
+           you can print get_output_devices to see the indexes
+    '''
     print deepin_pulseaudio_obj.set_output_active_port(1, output_ports[0][1])
     print "========set_input_active_port testcase========"                     
     print deepin_pulseaudio_obj.set_input_active_port(0, input_ports[0][1])   
     print "========set_output_mute testcase========"                     
     print deepin_pulseaudio_obj.set_output_mute(1, False)   
     print "========set_input_mute testcase========"                      
-    # FIXME: set_input_mute do not work
-    print deepin_pulseaudio_obj.set_input_mute(0, False) 
+    '''
+    @param input device index
+           you can print get_input_devices to see the indexes
+    @param mute or not
+    '''
+    print deepin_pulseaudio_obj.set_input_mute(2, False) 
     # FIXME: set output/input volume do not work
     print "========set_output_volume testcase========"                     
     print deepin_pulseaudio_obj.set_output_volume(1, 18)   
