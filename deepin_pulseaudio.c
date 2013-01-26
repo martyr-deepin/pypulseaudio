@@ -25,7 +25,6 @@
 #define DEVICE_NUM 16
 
 #define INT(v) PyInt_FromLong(v)
-#define DOUBLE(v) PyFloat_FromDouble(v)
 #define STRING(v) PyString_FromString(v)
 #define ERROR(v) PyErr_SetString(PyExc_TypeError, v)
 
@@ -43,7 +42,6 @@
 typedef struct {
     PyObject_HEAD
     PyObject *dict; /* Python attributes dictionary */
-    pa_context *pa_ctx;
     PyObject *input_devices;
     PyObject *output_devices;
     PyObject *input_ports;
@@ -335,10 +333,18 @@ static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object()
     return self;
 }
 
+static PyObject *m_changed_cb(PyObject *args) 
+{
+    while (1) {
+        printf("DEBUG tick ... \n");
+        sleep(1);
+    }
+}
+
 static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args) 
 {
     DeepinPulseAudioObject *self = NULL;
- 
+
     self = m_init_deepin_pulseaudio_object();
     if (!self)
         return NULL;
@@ -411,7 +417,7 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
         ERROR("PyDict_New error");                                              
         m_delete(self);                                                         
         return NULL;                                                            
-    }       
+    }
 
     return self;
 }
@@ -449,7 +455,18 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
     // We'll need these state variables to keep track of our requests           
     int state = 0;                                                              
     int pa_ready = 0;                                                           
-                                                                                
+
+    PyDict_Clear(self->output_devices);
+    PyDict_Clear(self->input_devices);
+    PyDict_Clear(self->output_channels);
+    PyDict_Clear(self->input_channels);
+    PyDict_Clear(self->output_active_ports);
+    PyDict_Clear(self->input_active_ports);
+    PyDict_Clear(self->output_mute);
+    PyDict_Clear(self->input_mute);
+    PyDict_Clear(self->output_volume);
+    PyDict_Clear(self->input_volume);
+
     // Create a mainloop API and connection to the default server               
     pa_ml = pa_mainloop_new();                                                  
     pa_mlapi = pa_mainloop_get_api(pa_ml);                                      
