@@ -60,9 +60,11 @@ def test():
     print "========set_output_mute testcase========"                     
     print deepin_pulseaudio_obj.set_output_mute(1, False)   
     print "========set_input_mute testcase========"                      
+    # FIXME: set_input_mute do not work
     print deepin_pulseaudio_obj.set_input_mute(0, False) 
+    # FIXME: set output/input volume do not work
     print "========set_output_volume testcase========"                     
-    print deepin_pulseaudio_obj.set_output_volume(1, 18)   
+    print deepin_pulseaudio_obj.set_output_volume(0, 18)   
     print "========set_input_volume testcase========"                      
     print deepin_pulseaudio_obj.set_input_volume(0, 18) 
 

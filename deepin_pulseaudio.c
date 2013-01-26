@@ -1069,8 +1069,9 @@ static PyObject *m_set_output_volume(DeepinPulseAudioObject *self,
                     return Py_False;
                 }
                 volume->channels = PyList_Size(volumes);
-                for (i = 0; i <= volume->channels; i++) 
+                for (i = 0; i < volume->channels; i++) 
                     volume->values[i] = volume_value;
+                volume->values[i + 1] = 0;
                 pa_op = pa_context_set_sink_volume_by_index(pa_ctx, 
                                                             index, 
                                                             volume, 
