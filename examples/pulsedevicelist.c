@@ -205,7 +205,6 @@ void pa_sinklist_cb(pa_context *c, const pa_sink_info *l, int eol, void *userdat
     for (ctr = 0; ctr < 16; ctr++) {
         if (! pa_devicelist[ctr].initialized) {
             strncpy(pa_devicelist[ctr].name, l->name, 511);
-            printf("DEBUG sink name %s\n", pa_devicelist[ctr].name);
             strncpy(pa_devicelist[ctr].description, l->description, 255);
             printf("DEBUG channel count %d\n", l->channel_map.channels);
             for (i = 0; i <= l->channel_map.channels; i++) {

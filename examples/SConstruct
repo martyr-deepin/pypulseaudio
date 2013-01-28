@@ -1,3 +1,5 @@
 env = Environment(CCFLAGS='-g')
 
 env.Program('pulsedevicelist.c', LIBS=['libpulse'])
+
+env.SharedLibrary('libhello_loop', ['hello_loop.c'], LIBS=['libpthread'])

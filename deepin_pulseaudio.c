@@ -333,14 +333,6 @@ static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object()
     return self;
 }
 
-static PyObject *m_changed_cb(PyObject *args) 
-{
-    while (1) {
-        printf("DEBUG tick ... \n");
-        sleep(1);
-    }
-}
-
 static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args) 
 {
     DeepinPulseAudioObject *self = NULL;
