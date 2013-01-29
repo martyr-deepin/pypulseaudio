@@ -1,19 +1,21 @@
 #include <stdio.h>
 #include <string.h>
 #include <pulse/pulseaudio.h>
+#include <pthread.h>
+
+static int m_state = 0;
 
 void pa_state_cb(pa_context *c, void *userdata);
-int pa_event_subscribe();
+static void *m_pa_mainloop_cb(void *arg);
 void *pa_context_subscribe_cb(pa_context *c, 
                               pa_subscription_event_type_t t, 
                               uint32_t idx, 
                               void *userdata);
 
 int main(int argc, char *argv[]) {
-    if (pa_event_subscribe() < 0) {
-        fprintf(stderr, "failed to subscribe event\n");
-        return 1;
-    }
+    pthread_t thread;
+
+    pthread_create(&thread, NULL, m_pa_mainloop_cb, NULL);
 
     while (1) {
         sleep(1);
@@ -23,18 +25,17 @@ int main(int argc, char *argv[]) {
 }
 
 /* http://freedesktop.org/software/pulseaudio/doxygen/subscribe.html */
-int pa_event_subscribe() {
+void *m_pa_mainloop_cb(void *arg) {
     // Define our pulse audio loop and connection variables
     pa_mainloop *pa_ml = NULL;
     pa_mainloop_api *pa_mlapi = NULL;
     pa_operation *pa_op = NULL;
     pa_context *pa_ctx = NULL;
-    int state;
     int pa_ready;
 
 RE_CONN:
     // We'll need these state variables to keep track of our requests
-    state = 0;
+    m_state = 0;
     pa_ready = 0;
 
     // Create a mainloop API and connection to the default server
@@ -68,28 +69,27 @@ RE_CONN:
             pa_context_disconnect(pa_ctx);                                      
             pa_context_unref(pa_ctx);                                           
             pa_mainloop_free(pa_ml);
+            /* wait for a while to reconnect to pulse server */
             sleep(3);
             goto RE_CONN;
         }
         // At this point, we're connected to the server and ready to make
         // requests
-        switch (state) {
+        switch (m_state) {
             // State 0: we haven't done anything yet
             case 0:
-                printf("enable event notification\n");
+                printf("try to enable event notification\n");
                 pa_op = pa_context_subscribe(pa_ctx,
                         PA_SUBSCRIPTION_MASK_ALL,
                         NULL, 
                         NULL);
-
-                pa_context_set_subscribe_callback(pa_ctx, 
-                    pa_context_subscribe_cb, 
+                pa_context_set_subscribe_callback(pa_ctx,                       
+                    pa_context_subscribe_cb,                                    
                     NULL);
-
-                state++;
+                m_state++;
                 break;
             case 1:
-                sleep(1);
+                usleep(100);
                 break;
             case 2:
                 // Now we're done, clean up and disconnect and return
@@ -97,17 +97,19 @@ RE_CONN:
                 pa_context_disconnect(pa_ctx);
                 pa_context_unref(pa_ctx);
                 pa_mainloop_free(pa_ml);
-                return 0;
+                return NULL;
             default:
                 // We should never see this state
-                fprintf(stderr, "in state %d\n", state);
-                return -1;
+                fprintf(stderr, "in state %d\n", m_state);
+                return NULL;
         }
         // Iterate the main loop and go again.  The second argument is whether
         // or not the iteration should block until something is ready to be
         // done.  Set it to zero for non-blocking.
         pa_mainloop_iterate(pa_ml, 1, NULL);
     }
+
+    return NULL;
 }
 
 // This callback gets called when our context changes state.  We really only
