@@ -3,6 +3,7 @@
 #include <pulse/pulseaudio.h>
 #include <pthread.h>
 
+static pthread_mutex_t m_mutex;
 static int m_state = 0;
 static pa_context *m_pa_ctx = NULL;
 
@@ -16,6 +17,7 @@ static void *m_pa_context_subscribe_cb(pa_context *c,
 int main(int argc, char *argv[]) {
     pthread_t thread;
 
+    pthread_mutex_init(&m_mutex, NULL);
     pthread_create(&thread, NULL, m_pa_mainloop_cb, NULL);
 
     sleep(3);
@@ -26,6 +28,8 @@ int main(int argc, char *argv[]) {
     while (1) {
         sleep(1);
     }
+
+    pthread_mutex_destroy(&m_mutex);
 
     return 0;
 }
@@ -88,15 +92,22 @@ RE_CONN:
                         PA_SUBSCRIPTION_MASK_ALL,
                         NULL, 
                         NULL);
-                pa_context_set_subscribe_callback(m_pa_ctx,                       
-                    m_pa_context_subscribe_cb,                                    
-                    NULL);
                 m_state++;
                 break;
             case 1:
-                usleep(100);
+                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
+                    pa_operation_unref(pa_op);
+                    printf("try to set subscribe callback\n");
+                    pa_context_set_subscribe_callback(m_pa_ctx,                     
+                    m_pa_context_subscribe_cb,                                  
+                    NULL);
+                    m_state++;
+                }
                 break;
             case 2:
+                usleep(100);
+                break;
+            case 3:
                 // Now we're done, clean up and disconnect and return
                 printf("disconnect pulse server\n");
                 pa_context_disconnect(m_pa_ctx);
@@ -120,6 +131,7 @@ RE_CONN:
 // This callback gets called when our context changes state.  We really only
 // care about when it's ready or if it has failed
 static void m_pa_state_cb(pa_context *c, void *userdata) {
+    pthread_mutex_lock(&m_mutex);
     pa_context_state_t state;
     int *pa_ready = userdata;
     
@@ -140,6 +152,7 @@ static void m_pa_state_cb(pa_context *c, void *userdata) {
             *pa_ready = 1;
             break;
     }
+    pthread_mutex_unlock(&m_mutex);
 }
 
 static void *m_pa_context_subscribe_cb(pa_context *c, 
