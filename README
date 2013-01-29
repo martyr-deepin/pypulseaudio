@@ -2,8 +2,6 @@ pypulseaudio
 ============
 
 PulseAudio Python Binding
-ONLY support get/set operation
-Event Subscription do not support, but Deepin Settings Daemon support it :)
 
 install
 =======
