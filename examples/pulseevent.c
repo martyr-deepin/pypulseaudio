@@ -4,18 +4,24 @@
 #include <pthread.h>
 
 static int m_state = 0;
+static pa_context *m_pa_ctx = NULL;
 
-void pa_state_cb(pa_context *c, void *userdata);
+static void m_pa_state_cb(pa_context *c, void *userdata);
 static void *m_pa_mainloop_cb(void *arg);
-void *pa_context_subscribe_cb(pa_context *c, 
-                              pa_subscription_event_type_t t, 
-                              uint32_t idx, 
-                              void *userdata);
+static void *m_pa_context_subscribe_cb(pa_context *c, 
+                                       pa_subscription_event_type_t t, 
+                                       uint32_t idx, 
+                                       void *userdata);
 
 int main(int argc, char *argv[]) {
     pthread_t thread;
 
     pthread_create(&thread, NULL, m_pa_mainloop_cb, NULL);
+
+    sleep(3);
+    if (m_pa_ctx) {
+        pa_context_set_sink_mute_by_index(m_pa_ctx, 1, 1, NULL, NULL);
+    }
 
     while (1) {
         sleep(1);
@@ -25,12 +31,11 @@ int main(int argc, char *argv[]) {
 }
 
 /* http://freedesktop.org/software/pulseaudio/doxygen/subscribe.html */
-void *m_pa_mainloop_cb(void *arg) {
+static void *m_pa_mainloop_cb(void *arg) {
     // Define our pulse audio loop and connection variables
     pa_mainloop *pa_ml = NULL;
     pa_mainloop_api *pa_mlapi = NULL;
     pa_operation *pa_op = NULL;
-    pa_context *pa_ctx = NULL;
     int pa_ready;
 
 RE_CONN:
@@ -41,17 +46,17 @@ RE_CONN:
     // Create a mainloop API and connection to the default server
     pa_ml = pa_mainloop_new();
     pa_mlapi = pa_mainloop_get_api(pa_ml);
-    pa_ctx = pa_context_new(pa_mlapi, "test");
+    m_pa_ctx = pa_context_new(pa_mlapi, "test");
 
     // This function connects to the pulse server
-    pa_context_connect(pa_ctx, NULL, 0, NULL);
+    pa_context_connect(m_pa_ctx, NULL, 0, NULL);
 
     // This function defines a callback so the server will tell us it's state.
     // Our callback will wait for the state to be ready.  The callback will
     // modify the variable to 1 so we know when we have a connection and it's
     // ready.
     // If there's an error, the callback will set pa_ready to 2
-    pa_context_set_state_callback(pa_ctx, pa_state_cb, &pa_ready);
+    pa_context_set_state_callback(m_pa_ctx, m_pa_state_cb, &pa_ready);
 
     // Now we'll enter into an infinite loop until we get the data we receive
     // or if there's an error
@@ -66,8 +71,8 @@ RE_CONN:
         if (pa_ready == 2) {
             printf("fail to connect to pulse server\n");
             printf("try to reconnect to pulse server\n");
-            pa_context_disconnect(pa_ctx);                                      
-            pa_context_unref(pa_ctx);                                           
+            pa_context_disconnect(m_pa_ctx);                                      
+            pa_context_unref(m_pa_ctx);                                           
             pa_mainloop_free(pa_ml);
             /* wait for a while to reconnect to pulse server */
             sleep(3);
@@ -79,12 +84,12 @@ RE_CONN:
             // State 0: we haven't done anything yet
             case 0:
                 printf("try to enable event notification\n");
-                pa_op = pa_context_subscribe(pa_ctx,
+                pa_op = pa_context_subscribe(m_pa_ctx,
                         PA_SUBSCRIPTION_MASK_ALL,
                         NULL, 
                         NULL);
-                pa_context_set_subscribe_callback(pa_ctx,                       
-                    pa_context_subscribe_cb,                                    
+                pa_context_set_subscribe_callback(m_pa_ctx,                       
+                    m_pa_context_subscribe_cb,                                    
                     NULL);
                 m_state++;
                 break;
@@ -94,8 +99,8 @@ RE_CONN:
             case 2:
                 // Now we're done, clean up and disconnect and return
                 printf("disconnect pulse server\n");
-                pa_context_disconnect(pa_ctx);
-                pa_context_unref(pa_ctx);
+                pa_context_disconnect(m_pa_ctx);
+                pa_context_unref(m_pa_ctx);
                 pa_mainloop_free(pa_ml);
                 return NULL;
             default:
@@ -114,7 +119,7 @@ RE_CONN:
 
 // This callback gets called when our context changes state.  We really only
 // care about when it's ready or if it has failed
-void pa_state_cb(pa_context *c, void *userdata) {
+static void m_pa_state_cb(pa_context *c, void *userdata) {
     pa_context_state_t state;
     int *pa_ready = userdata;
     
@@ -137,10 +142,10 @@ void pa_state_cb(pa_context *c, void *userdata) {
     }
 }
 
-void *pa_context_subscribe_cb(pa_context *c, 
-                              pa_subscription_event_type_t t, 
-                              uint32_t idx, 
-                              void *userdata) 
+static void *m_pa_context_subscribe_cb(pa_context *c, 
+                                       pa_subscription_event_type_t t, 
+                                       uint32_t idx, 
+                                       void *userdata) 
 {
     printf("event notified %d %d\n", t, idx);
 }
