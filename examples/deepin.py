@@ -21,7 +21,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import deepin_pulseaudio
-import time
 
 def test():
     deepin_pulseaudio_obj = deepin_pulseaudio.new()
@@ -76,9 +75,4 @@ def test():
     print "========set_input_volume testcase========"                      
     print deepin_pulseaudio_obj.set_input_volume(2, 80000) 
 
-
 test()
-'''
-while True:
-    time.sleep(1000)
-'''

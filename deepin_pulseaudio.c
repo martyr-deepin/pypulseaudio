@@ -63,6 +63,11 @@ static PyObject *m_deepin_pulseaudio_object_constants = NULL;
 static PyTypeObject *m_DeepinPulseAudio_Type = NULL;
 
 static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object();
+static void *m_pa_context_subscribe_cb(pa_context *c,                           
+                                       pa_subscription_event_type_t t,          
+                                       uint32_t idx,                            
+                                       void *userdata);
+static void *m_pa_connect_loop_cb(void *arg);
 static DeepinPulseAudioObject *m_new(PyObject *self, PyObject *args);
 
 static PyMethodDef deepin_pulseaudio_methods[] = 
@@ -343,7 +348,7 @@ static void *m_pa_context_subscribe_cb(pa_context *c,
                                        uint32_t idx,                            
                                        void *userdata)                          
 {                                                                               
-    printf("event notified %d %d\n", t, idx);                                   
+    printf("DEBUG event notified %d %d\n", t, idx);        
 }
 
 static void *m_pa_connect_loop_cb(void *arg) 
@@ -385,13 +390,11 @@ RE_CONN:
         }                                                                       
         // We couldn't get a connection to the server, so exit out              
         if (pa_ready == 2) {                                                    
-            printf("fail to connect to pulse server\n");                        
-            printf("try to reconnect to pulse server\n");                       
             pa_context_disconnect(pa_ctx);                                    
             pa_context_unref(pa_ctx);                                         
             pa_mainloop_free(pa_ml);                                            
             /* wait for a while to reconnect to pulse server */                 
-            sleep(3);                                                           
+            sleep(13);                                                           
             goto RE_CONN;                                                       
         }                                                                       
         // At this point, we're connected to the server and ready to make          
@@ -399,7 +402,6 @@ RE_CONN:
         switch (self->state) {                                                      
             // State 0: we haven't done anything yet                            
             case 0:                                                             
-                printf("try to enable event notification\n");                   
                 pa_op = pa_context_subscribe(pa_ctx,                          
                         PA_SUBSCRIPTION_MASK_ALL,
                         NULL,                                                   
@@ -409,7 +411,6 @@ RE_CONN:
             case 1:                                                             
                 if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {          
                     pa_operation_unref(pa_op);                                  
-                    printf("try to set subscribe callback\n");                  
                     pa_context_set_subscribe_callback(pa_ctx,                     
                     m_pa_context_subscribe_cb,                                  
                     NULL);                                                      
@@ -421,7 +422,6 @@ RE_CONN:
                 break;                                                          
             case 3:                                                             
                 // Now we're done, clean up and disconnect and return           
-                printf("disconnect pulse server\n");                            
                 pa_context_disconnect(pa_ctx);                                
                 pa_context_unref(pa_ctx);                                     
                 pa_mainloop_free(pa_ml);                                        
@@ -597,10 +597,8 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
         }                                                                       
         // We couldn't get a connection to the server, so exit out              
         if (pa_ready == 2) {                                                    
-            printf("DEBUG fail to connect to the server\n");
             pa_context_disconnect(pa_ctx);                                      
             pa_context_unref(pa_ctx);
-            Py_DecRef(pa_ctx);
             pa_mainloop_free(pa_ml);                                            
             Py_INCREF(Py_False);                                                    
             return Py_False;     
@@ -856,10 +854,8 @@ static PyObject *m_set_output_active_port(DeepinPulseAudioObject *self,
             continue;                                                           
         }                                                                       
         if (pa_ready == 2) {                                                    
-            printf("DEBUG fail to connect to the server\n");                    
             pa_context_disconnect(pa_ctx);                                      
             pa_context_unref(pa_ctx);                                           
-            Py_DecRef(pa_ctx);                                                  
             pa_mainloop_free(pa_ml);                                            
             Py_INCREF(Py_False);                                                    
             return Py_False;                                                    
@@ -924,10 +920,8 @@ static PyObject *m_set_input_active_port(DeepinPulseAudioObject *self,
             continue;                                                           
         }                                                                       
         if (pa_ready == 2) {                                                    
-            printf("DEBUG fail to connect to the server\n");                    
             pa_context_disconnect(pa_ctx);                                      
             pa_context_unref(pa_ctx);                                           
-            Py_DecRef(pa_ctx);                                                  
             pa_mainloop_free(pa_ml);                                            
             Py_INCREF(Py_False);                                                
             return Py_False;                                                    
@@ -997,10 +991,8 @@ static PyObject *m_set_output_mute(DeepinPulseAudioObject *self,
             continue;                                                           
         }                                                                       
         if (pa_ready == 2) {                                                    
-            printf("DEBUG fail to connect to the server\n");                    
             pa_context_disconnect(pa_ctx);                                      
             pa_context_unref(pa_ctx);                                           
-            Py_DecRef(pa_ctx);                                                  
             pa_mainloop_free(pa_ml);                                            
             Py_INCREF(Py_False);                                                    
             return Py_False;                                                    
@@ -1067,10 +1059,8 @@ static PyObject *m_set_input_mute(DeepinPulseAudioObject *self,
             continue;                                                           
         }                                                                       
         if (pa_ready == 2) {                                                    
-            printf("DEBUG fail to connect to the server\n");                    
             pa_context_disconnect(pa_ctx);                                      
             pa_context_unref(pa_ctx);                                           
-            Py_DecRef(pa_ctx);                                                  
             pa_mainloop_free(pa_ml);                                            
             Py_INCREF(Py_False);                                                    
             return Py_False;                                                    
