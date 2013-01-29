@@ -21,6 +21,7 @@
 
 #include <Python.h>
 #include <pulse/pulseaudio.h>
+#include <pthread.h>
 
 #define DEVICE_NUM 16
 
@@ -35,13 +36,14 @@
     Py_XDECREF(tmp); \
 } while (0)
 
-/* TODO: Field list is here
- * http://0pointer.de/lennart/projects/pulseaudio/doxygen/structpa__sink__info.html
+/* PulseAudio API doc
+ * http://0pointer.de/lennart/projects/pulseaudio/doxygen/index.html
  */
-
 typedef struct {
     PyObject_HEAD
     PyObject *dict; /* Python attributes dictionary */
+    pthread_t thread;
+    int state;
     PyObject *input_devices;
     PyObject *output_devices;
     PyObject *input_ports;
@@ -56,6 +58,7 @@ typedef struct {
     PyObject *output_volume;
 } DeepinPulseAudioObject;
 
+static pthread_mutex_t m_mutex = PTHREAD_MUTEX_INITIALIZER;
 static PyObject *m_deepin_pulseaudio_object_constants = NULL;
 static PyTypeObject *m_DeepinPulseAudio_Type = NULL;
 
@@ -321,6 +324,8 @@ static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object()
     PyObject_GC_Track(self);
 
     self->dict = NULL;
+    self->thread = 0;
+    self->state = 0;
     self->input_devices = NULL;
     self->output_devices = NULL;
     self->input_ports = NULL;
@@ -331,6 +336,107 @@ static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object()
     self->output_active_ports = NULL;
 
     return self;
+}
+
+static void *m_pa_context_subscribe_cb(pa_context *c,                           
+                                       pa_subscription_event_type_t t,          
+                                       uint32_t idx,                            
+                                       void *userdata)                          
+{                                                                               
+    printf("event notified %d %d\n", t, idx);                                   
+}
+
+static void *m_pa_connect_loop_cb(void *arg) 
+{
+    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) arg;
+
+    pa_mainloop *pa_ml = NULL;                                                  
+    pa_mainloop_api *pa_mlapi = NULL;                                           
+    pa_context *pa_ctx = NULL;
+    pa_operation *pa_op = NULL;                                                 
+    int pa_ready;                                                               
+                                                                                
+RE_CONN:                                                                        
+    // We'll need these state variables to keep track of our requests           
+    self->state = 0;                                                                
+    pa_ready = 0;                                                               
+                                                                                
+    // Create a mainloop API and connection to the default server               
+    pa_ml = pa_mainloop_new();                                                  
+    pa_mlapi = pa_mainloop_get_api(pa_ml);                                      
+    pa_ctx = pa_context_new(pa_mlapi, "deepin_thread");                                
+                                                                                
+    // This function connects to the pulse server                               
+    pa_context_connect(pa_ctx, NULL, 0, NULL);                                
+                                                                                
+    // This function defines a callback so the server will tell us it's state.  
+    // Our callback will wait for the state to be ready.  The callback will     
+    // modify the variable to 1 so we know when we have a connection and it's   
+    // ready.                                                                   
+    // If there's an error, the callback will set pa_ready to 2                 
+    pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);
+
+    for (;;) {                                                                  
+        // We can't do anything until PA is ready, so just iterate the mainloop 
+        // and continue                                                         
+        if (pa_ready == 0) {                                                    
+            pa_mainloop_iterate(pa_ml, 1, NULL);                                
+            continue;                                                           
+        }                                                                       
+        // We couldn't get a connection to the server, so exit out              
+        if (pa_ready == 2) {                                                    
+            printf("fail to connect to pulse server\n");                        
+            printf("try to reconnect to pulse server\n");                       
+            pa_context_disconnect(pa_ctx);                                    
+            pa_context_unref(pa_ctx);                                         
+            pa_mainloop_free(pa_ml);                                            
+            /* wait for a while to reconnect to pulse server */                 
+            sleep(3);                                                           
+            goto RE_CONN;                                                       
+        }                                                                       
+        // At this point, we're connected to the server and ready to make          
+        // requests                                                             
+        switch (self->state) {                                                      
+            // State 0: we haven't done anything yet                            
+            case 0:                                                             
+                printf("try to enable event notification\n");                   
+                pa_op = pa_context_subscribe(pa_ctx,                          
+                        PA_SUBSCRIPTION_MASK_ALL,
+                        NULL,                                                   
+                        NULL);                                                  
+                self->state++;                                                      
+                break;                                                          
+            case 1:                                                             
+                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {          
+                    pa_operation_unref(pa_op);                                  
+                    printf("try to set subscribe callback\n");                  
+                    pa_context_set_subscribe_callback(pa_ctx,                     
+                    m_pa_context_subscribe_cb,                                  
+                    NULL);                                                      
+                    self->state++;                                                  
+                }                                                               
+                break;                                                          
+            case 2:                                                             
+                usleep(100);                                                    
+                break;                                                          
+            case 3:                                                             
+                // Now we're done, clean up and disconnect and return           
+                printf("disconnect pulse server\n");                            
+                pa_context_disconnect(pa_ctx);                                
+                pa_context_unref(pa_ctx);                                     
+                pa_mainloop_free(pa_ml);                                        
+                return NULL;                                                    
+            default:                                                            
+                // We should never see this state
+                return NULL;                                                    
+        }                                                                       
+        // Iterate the main loop and go again.  The second argument is whether  
+        // or not the iteration should block until something is ready to be        
+        // done.  Set it to zero for non-blocking.                              
+        pa_mainloop_iterate(pa_ml, 1, NULL);                                    
+    }                                                                           
+                                                                                
+    return NULL;                                                                
 }
 
 static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args) 
@@ -411,11 +517,17 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
         return NULL;                                                            
     }
 
+    pthread_create(&self->thread, NULL, m_pa_connect_loop_cb, self);
+
     return self;
 }
 
 static PyObject *m_delete(DeepinPulseAudioObject *self) 
 {
+    self->state = 3;
+    if (self->thread) 
+        pthread_cancel(&self->thread);
+
     if (self->output_devices) {
         Py_DecRef(self->output_devices);
         self->output_devices = NULL;
@@ -1031,6 +1143,7 @@ static PyObject *m_set_input_volume(DeepinPulseAudioObject *self,
 // This callback gets called when our context changes state.  We really only    
 // care about when it's ready or if it has failed                               
 static void m_pa_state_cb(pa_context *c, void *userdata) {                               
+    pthread_mutex_lock(&m_mutex);
     pa_context_state_t state;                                               
     int *pa_ready = userdata;                                               
                                                                                 
@@ -1050,7 +1163,8 @@ static void m_pa_state_cb(pa_context *c, void *userdata) {
         case PA_CONTEXT_READY:                                          
             *pa_ready = 1;                                          
             break;                                                  
-    }                                                                       
+    }
+    pthread_mutex_unlock(&m_mutex);
 }
 
 // pa_mainloop will call this function when it's ready to tell us about a sink. 
