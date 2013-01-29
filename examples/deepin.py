@@ -21,6 +21,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import deepin_pulseaudio
+import time
 
 def test():
     deepin_pulseaudio_obj = deepin_pulseaudio.new()
@@ -70,7 +71,6 @@ def test():
     @param mute or not
     '''
     print deepin_pulseaudio_obj.set_input_mute(2, False) 
-    # FIXME: set output/input volume do not work
     print "========set_output_volume testcase========"                     
     print deepin_pulseaudio_obj.set_output_volume(1, 60000)   
     print "========set_input_volume testcase========"                      
@@ -78,3 +78,7 @@ def test():
 
 
 test()
+'''
+while True:
+    time.sleep(1000)
+'''

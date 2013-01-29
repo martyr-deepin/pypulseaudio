@@ -20,7 +20,6 @@ int hello_loop_init()
 
     printf("DEBUG hello_loop_init\n");
     pthread_create(&thread, NULL, m_hello_loop_cb, NULL);
-    pthread_join(thread, NULL);
 
     return 0;
 }
