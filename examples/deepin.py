@@ -22,8 +22,12 @@
 
 import deepin_pulseaudio
 
+def m_sink_changed_cb(name, index, volume, mute, active_port):
+    print "DEBUG sink changed callback", name, index, volume, mute, active_port
+
 def test():
     deepin_pulseaudio_obj = deepin_pulseaudio.new()
+    deepin_pulseaudio_obj.connect("sink-changed", m_sink_changed_cb)
     deepin_pulseaudio_obj.get_devices()
     print "========get_output_ports testcase========"
     output_ports = deepin_pulseaudio_obj.get_output_ports()
