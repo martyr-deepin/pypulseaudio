@@ -353,12 +353,20 @@ static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object()
     return self;
 }
 
+static void m_pa_client_info_cb(pa_context *c,                                  
+                                const pa_client_info *i,                        
+                                int eol,                                        
+                                void *userdata)                                 
+{                                                                               
+    printf("DEBUG %s\n", i ? i->name : NULL);                                   
+}
+
 static void m_pa_sink_info_cb(pa_context *c, 
                               const pa_sink_info *i, 
                               int eol, 
                               void *userdata) 
 {
-    printf("DEBUG %s %d\n", i->name, i->index);
+    printf("DEBUG %s %d\n", i ? i->name : NULL, i ? i->index : -1);
 }
 
 static void m_pa_context_subscribe_cb(pa_context *c,                           
@@ -366,12 +374,22 @@ static void m_pa_context_subscribe_cb(pa_context *c,
                                       uint32_t idx,                            
                                       void *userdata)                          
 {                                                                               
-    printf("DEBUG %d %d\n", t, idx);
-    switch (t & PA_SUBSCRIPTION_EVENT_FACILITY_MASK) {
-        case PA_SUBSCRIPTION_EVENT_SINK:
-            printf("DEBUG %d\n", idx);
-            pa_context_get_sink_info_by_index(c, idx, m_pa_sink_info_cb, NULL);
-            break;
+    switch (t & PA_SUBSCRIPTION_EVENT_FACILITY_MASK) {                          
+        case PA_SUBSCRIPTION_EVENT_SINK:                                        
+            if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
+                printf("DEBUG sink %d removed\n", idx);                         
+            } else {                                                            
+                pa_context_get_sink_info_by_index(c, idx, m_pa_sink_info_cb, NULL);
+            }                                                                   
+            break;                                                              
+        case PA_SUBSCRIPTION_EVENT_CLIENT:                                      
+            if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
+                printf("DEBUG client %d removed\n", idx);                       
+            } else {                                                            
+                printf("DEBUG client %d inserted\n", idx);                      
+                pa_context_get_client_info(c, idx, m_pa_client_info_cb, NULL);  
+            }                                                                   
+            break;                                                              
     }
 }
 
@@ -430,24 +448,24 @@ RE_CONN:
         switch (self->state) {                                                      
             // State 0: we haven't done anything yet
             case 0:                                                             
-                pa_op = pa_context_subscribe(pa_ctx, (pa_subscription_mask_t)
-                        (PA_SUBSCRIPTION_MASK_SINK|          
-                        PA_SUBSCRIPTION_MASK_SOURCE|        
-                        PA_SUBSCRIPTION_MASK_SINK_INPUT|       
-                        PA_SUBSCRIPTION_MASK_SOURCE_OUTPUT| 
-                        PA_SUBSCRIPTION_MASK_CLIENT|        
-                        PA_SUBSCRIPTION_MASK_SERVER|    
-                        PA_SUBSCRIPTION_MASK_CARD),
+                pa_context_set_subscribe_callback(pa_ctx,                       
+                m_pa_context_subscribe_cb,                                      
+                NULL);                                                          
+                pa_op = pa_context_subscribe(pa_ctx,                            
+                        (PA_SUBSCRIPTION_MASK_SINK|                             
+                        PA_SUBSCRIPTION_MASK_SOURCE|                            
+                        PA_SUBSCRIPTION_MASK_SINK_INPUT|                        
+                        PA_SUBSCRIPTION_MASK_SOURCE_OUTPUT|                     
+                        PA_SUBSCRIPTION_MASK_CLIENT|                            
+                        PA_SUBSCRIPTION_MASK_SERVER|                            
+                        PA_SUBSCRIPTION_MASK_CARD),                             
                         NULL,                                                   
-                        NULL);                                                  
+                        NULL);
                 self->state++;                                                      
                 break;                                                          
             case 1:                                              
                 if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {          
                     pa_operation_unref(pa_op);
-                    pa_context_set_subscribe_callback(pa_ctx,                       
-                    m_pa_context_subscribe_cb,                                  
-                    NULL);
                     self->state++; 
                 }
                 break;

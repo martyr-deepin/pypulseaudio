@@ -71,8 +71,8 @@ def test():
     '''
     print deepin_pulseaudio_obj.set_input_mute(2, False) 
     print "========set_output_volume testcase========"                     
-    print deepin_pulseaudio_obj.set_output_volume(1, 60000)   
+    print deepin_pulseaudio_obj.set_output_volume(1, (60000, 60000))   
     print "========set_input_volume testcase========"                      
-    print deepin_pulseaudio_obj.set_input_volume(2, 80000) 
+    print deepin_pulseaudio_obj.set_input_volume(2, (80000, 80000)) 
 
 test()
