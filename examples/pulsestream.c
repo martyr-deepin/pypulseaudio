@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <pulse/pulseaudio.h>
+#include <pulse/ext-stream-restore.h>
 #include <pthread.h>
 
 static pthread_mutex_t m_mutex;
@@ -9,23 +10,15 @@ static pa_context *m_pa_ctx = NULL;
 
 static void m_pa_state_cb(pa_context *c, void *userdata);
 static void *m_pa_mainloop_cb(void *arg);
-static void *m_pa_context_subscribe_cb(pa_context *c, 
-                                       pa_subscription_event_type_t t, 
-                                       uint32_t idx, 
-                                       void *userdata);
+static void m_pa_ext_stream_restore_read_cb(pa_context *c, 
+            const pa_ext_stream_restore_info *info, int eol, void *userdata);
+static void m_pa_ext_stream_restore_subscribe_cb(pa_context *c, void *userdata);
 
 int main(int argc, char *argv[]) {
     pthread_t thread;
 
     pthread_mutex_init(&m_mutex, NULL);
     pthread_create(&thread, NULL, m_pa_mainloop_cb, NULL);
-
-    /* TODO: test other pa operation
-    sleep(3);
-    if (m_pa_ctx) {
-        pa_context_set_sink_mute_by_index(m_pa_ctx, 1, 1, NULL, NULL);
-    }
-    */
 
     while (1) {
         sleep(1);
@@ -36,7 +29,7 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-/* http://freedesktop.org/software/pulseaudio/doxygen/subscribe.html */
+/* http://freedesktop.org/software/pulseaudio/doxygen/ext-stream-restore_8h.html */
 static void *m_pa_mainloop_cb(void *arg) {
     // Define our pulse audio loop and connection variables
     pa_mainloop *pa_ml = NULL;
@@ -89,27 +82,35 @@ RE_CONN:
         switch (m_state) {
             // State 0: we haven't done anything yet
             case 0:
-                printf("try to enable event notification\n");
-                pa_op = pa_context_subscribe(m_pa_ctx,
-                        PA_SUBSCRIPTION_MASK_ALL,
-                        NULL, 
+                pa_op = pa_ext_stream_restore_read(m_pa_ctx, 
+                        m_pa_ext_stream_restore_read_cb, 
                         NULL);
                 m_state++;
                 break;
-            case 1:
-                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
-                    pa_operation_unref(pa_op);
-                    printf("try to set subscribe callback\n");
-                    pa_context_set_subscribe_callback(m_pa_ctx,                     
-                    m_pa_context_subscribe_cb,                                  
+            case 1:                                                             
+                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {          
+                    pa_operation_unref(pa_op);                                  
+                    printf("try to set stream restore subscribe callback\n");   
+                    pa_ext_stream_restore_set_subscribe_cb(m_pa_ctx,                
+                    m_pa_ext_stream_restore_subscribe_cb,                           
                     NULL);
+                    printf("try to subscribe to changes in the stream database\n");
+                    pa_op = pa_ext_stream_restore_subscribe(m_pa_ctx,                  
+                            1,                                                  
+                            NULL,                                               
+                            NULL);
                     m_state++;
-                }
+                }                                                               
                 break;
             case 2:
-                usleep(100);
+                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) 
+                    pa_operation_unref(pa_op);
+                m_state++;
                 break;
             case 3:
+                usleep(100);
+                break;
+            case 4:
                 // Now we're done, clean up and disconnect and return
                 printf("disconnect pulse server\n");
                 pa_context_disconnect(m_pa_ctx);
@@ -133,7 +134,7 @@ RE_CONN:
 // This callback gets called when our context changes state.  We really only
 // care about when it's ready or if it has failed
 static void m_pa_state_cb(pa_context *c, void *userdata) {
-    pthread_mutex_lock(&m_mutex);
+    //pthread_mutex_lock(&m_mutex);
     pa_context_state_t state;
     int *pa_ready = userdata;
     
@@ -154,13 +155,20 @@ static void m_pa_state_cb(pa_context *c, void *userdata) {
             *pa_ready = 1;
             break;
     }
-    pthread_mutex_unlock(&m_mutex);
+    //pthread_mutex_unlock(&m_mutex);
 }
 
-static void *m_pa_context_subscribe_cb(pa_context *c, 
-                                       pa_subscription_event_type_t t, 
-                                       uint32_t idx, 
-                                       void *userdata) 
+static void m_pa_ext_stream_restore_read_cb(pa_context *c, 
+            const pa_ext_stream_restore_info *info, int eol, void *userdata) 
 {
-    printf("event notified %d %d\n", t, idx);
+    printf("DEBUG %s\n", info ? info->name : NULL);
+}
+
+static void m_pa_ext_stream_restore_subscribe_cb(pa_context *c, void *userdata) 
+{
+    printf("DEBUG stream notified\n");
+    pa_operation *pa_op = pa_ext_stream_restore_read(c, 
+        m_pa_ext_stream_restore_read_cb, 
+        NULL);
+    pa_operation_unref(pa_op);
 }

@@ -355,6 +355,9 @@ static void *m_pa_connect_loop_cb(void *arg)
 {
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) arg;
 
+    /* TODO: We do not need pa_threaded_mainloop because we can support 
+     * pthread mutex by ourself
+     */
     pa_mainloop *pa_ml = NULL;                                                  
     pa_mainloop_api *pa_mlapi = NULL;                                           
     pa_context *pa_ctx = NULL;

@@ -4,4 +4,6 @@ env.Program('pulsedevicelist.c', LIBS=['libpulse'])
 
 env.Program('pulseevent.c', LIBS=['libpulse'])
 
+env.Program('pulsestream.c', LIBS=['libpulse'])
+
 env.SharedLibrary('libhello_loop', ['hello_loop.c'], LIBS=['libpthread'])
