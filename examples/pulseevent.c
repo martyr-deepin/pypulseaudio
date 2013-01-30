@@ -9,10 +9,14 @@ static pa_context *m_pa_ctx = NULL;
 
 static void m_pa_state_cb(pa_context *c, void *userdata);
 static void *m_pa_mainloop_cb(void *arg);
-static void *m_pa_context_subscribe_cb(pa_context *c, 
-                                       pa_subscription_event_type_t t, 
-                                       uint32_t idx, 
-                                       void *userdata);
+static void m_pa_context_subscribe_cb(pa_context *c, 
+                                      pa_subscription_event_type_t t, 
+                                      uint32_t idx, 
+                                      void *userdata);
+static void m_pa_client_info_cb(pa_context *c,                                  
+                                const pa_client_info *i,                        
+                                int eol,                                        
+                                void *userdata);
 
 int main(int argc, char *argv[]) {
     pthread_t thread;
@@ -155,10 +159,26 @@ static void m_pa_state_cb(pa_context *c, void *userdata) {
     pthread_mutex_unlock(&m_mutex);
 }
 
-static void *m_pa_context_subscribe_cb(pa_context *c, 
-                                       pa_subscription_event_type_t t, 
-                                       uint32_t idx, 
-                                       void *userdata) 
+static void m_pa_client_info_cb(pa_context *c, 
+                                const pa_client_info *i, 
+                                int eol, 
+                                void *userdata) 
+{
+    printf("DEBUG %s\n", i ? i->name : NULL);
+}
+
+static void m_pa_context_subscribe_cb(pa_context *c, 
+                                      pa_subscription_event_type_t t, 
+                                      uint32_t idx, 
+                                      void *userdata) 
 {
     printf("event notified %d %d\n", t, idx);
+    if (t == PA_SUBSCRIPTION_EVENT_CLIENT) {
+        printf("DEBUG client %d inserted\n", idx);
+        pa_context_get_client_info(c, idx, m_pa_client_info_cb, NULL);
+    }
+
+    if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
+        printf("DEBUG client %d removed\n", idx);
+    }
 }
