@@ -354,11 +354,14 @@ static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object()
 }
 
 static void m_pa_client_info_cb(pa_context *c,                                  
-                                const pa_client_info *i,                        
+                                const pa_client_info *info,                        
                                 int eol,                                        
                                 void *userdata)                                 
-{                                                                               
-    //printf("DEBUG %s\n", i ? i->name : NULL);                                   
+{                                 
+    if (!info) 
+        return;
+
+    printf("DEBUG client info %s\n", info ? info->name : NULL);                                   
 }
 
 static void m_pa_sink_info_cb(pa_context *c, 
@@ -371,15 +374,12 @@ static void m_pa_sink_info_cb(pa_context *c,
     int i = 0;
     PyGILState_STATE gstate;
 
-    printf("DEBUG %s\n", info ? info->name : NULL);
-
     if (!info) 
         return;
 
     gstate = PyGILState_Ensure();
 
     if (self->sink_changed_cb) {
-        printf("DEBUG sink_changed_cb %d\n", self->sink_changed_cb);
         volumes = PyTuple_New(info->volume.channels);
         for (i = 0; i < info->volume.channels; i++) 
             PyTuple_SetItem(volumes, i, INT(info->volume.values[i]));
@@ -407,14 +407,16 @@ static void m_pa_context_subscribe_cb(pa_context *c,
     switch (t & PA_SUBSCRIPTION_EVENT_FACILITY_MASK) {                          
         /* FIXME: sink event can not notified! */
         case PA_SUBSCRIPTION_EVENT_SINK:                                        
-            if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) != PA_SUBSCRIPTION_EVENT_REMOVE) {
+            if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
+                printf("DEBUG sink %d removed\n", idx);
+            } else {
                 printf("DEBUG sink %d inserted\n", idx);
                 pa_context_get_sink_info_by_index(c, idx, m_pa_sink_info_cb, self);
             }                                                                   
             break;                                                              
         case PA_SUBSCRIPTION_EVENT_CLIENT:                                      
             if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
-                printf("DEBUG client %d removed\n", idx);                       
+                //printf("DEBUG client %d removed\n", idx);                       
             } else {                                                            
                 //printf("DEBUG client %d inserted\n", idx);                      
                 pa_context_get_client_info(c, idx, m_pa_client_info_cb, NULL);  
@@ -482,13 +484,13 @@ RE_CONN:
                 m_pa_context_subscribe_cb,                                      
                 self);                                                          
                 pa_op = pa_context_subscribe(pa_ctx,                            
-                        (PA_SUBSCRIPTION_MASK_SINK|                             
+                        PA_SUBSCRIPTION_MASK_SINK|                             
                         PA_SUBSCRIPTION_MASK_SOURCE|                            
                         PA_SUBSCRIPTION_MASK_SINK_INPUT|                        
                         PA_SUBSCRIPTION_MASK_SOURCE_OUTPUT|                     
                         PA_SUBSCRIPTION_MASK_CLIENT|                            
                         PA_SUBSCRIPTION_MASK_SERVER|                            
-                        PA_SUBSCRIPTION_MASK_CARD),                             
+                        PA_SUBSCRIPTION_MASK_CARD,                             
                         NULL,                                                   
                         NULL);
                 self->state++;                                                      

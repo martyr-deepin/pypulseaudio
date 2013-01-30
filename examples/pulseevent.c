@@ -162,7 +162,7 @@ static void m_pa_client_info_cb(pa_context *c,
                                 int eol, 
                                 void *userdata) 
 {
-    printf("DEBUG %s\n", i ? i->name : NULL);
+    printf("DEBUG client info %s\n", i ? i->name : NULL);
 }
 
 static void m_pa_sink_info_cb(pa_context *c,                                    
@@ -170,7 +170,7 @@ static void m_pa_sink_info_cb(pa_context *c,
                               int eol,                                          
                               void *userdata)                                   
 {                                                                               
-    printf("DEBUG %s %d\n", i ? i->name : NULL, i ? i->index : 0);                                 
+    printf("DEBUG sink info %s %d\n", i ? i->name : NULL, i ? i->index : 0);                                 
 }
 
 static void m_pa_context_subscribe_cb(pa_context *c, 
