@@ -37,14 +37,14 @@
     Py_XDECREF(tmp); \
 } while (0)
 
-/* PulseAudio API doc
- * http://0pointer.de/lennart/projects/pulseaudio/doxygen/index.html
- */
 typedef struct {
     PyObject_HEAD
     PyObject *dict; /* Python attributes dictionary */
     pthread_t thread;
     int state;
+    PyObject *volume_updated_cb;
+    PyObject *mute_updated_cb;
+    PyObject *active_port_updated_cb;
     PyObject *input_devices;
     PyObject *output_devices;
     PyObject *input_ports;
@@ -59,15 +59,19 @@ typedef struct {
     PyObject *output_volume;
 } DeepinPulseAudioObject;
 
+/* TODO: pthread mutex to lock pa_context_get_state, because pa_context_get_XXX 
+ * is atomic operation, it need mutex locker when several threads set the value 
+ * at same time
+ */
 static pthread_mutex_t m_mutex = PTHREAD_MUTEX_INITIALIZER;
 static PyObject *m_deepin_pulseaudio_object_constants = NULL;
 static PyTypeObject *m_DeepinPulseAudio_Type = NULL;
 
 static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object();
-static void *m_pa_context_subscribe_cb(pa_context *c,                           
-                                       pa_subscription_event_type_t t,          
-                                       uint32_t idx,                            
-                                       void *userdata);
+static void m_pa_context_subscribe_cb(pa_context *c,                           
+                                      pa_subscription_event_type_t t,          
+                                      uint32_t idx,                            
+                                      void *userdata);
 static void *m_pa_connect_loop_cb(void *arg);
 static DeepinPulseAudioObject *m_new(PyObject *self, PyObject *args);
 
@@ -78,6 +82,7 @@ static PyMethodDef deepin_pulseaudio_methods[] =
 };
 
 static PyObject *m_delete(DeepinPulseAudioObject *self);
+static PyObject *m_connect(DeepinPulseAudioObject *self, PyObject *args);
 static void m_pa_state_cb(pa_context *c, void *userdata);                                
 static void m_pa_sinklist_cb(pa_context *c, 
                              const pa_sink_info *l, 
@@ -125,6 +130,7 @@ static PyObject *m_set_input_volume(DeepinPulseAudioObject *self,
 static PyMethodDef deepin_pulseaudio_object_methods[] = 
 {
     {"delete", m_delete, METH_NOARGS, "Deepin PulseAudio destruction"}, 
+    {"connect", m_connect, METH_VARARGS, "Connect signal callback"}, 
     {"get_cards", m_get_cards, METH_NOARGS, "Get card list"}, 
     {"get_devices", m_get_devices, METH_NOARGS, "Get device list"}, 
     {"get_output_ports", 
@@ -332,6 +338,9 @@ static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object()
     self->dict = NULL;
     self->thread = 0;
     self->state = 0;
+    self->volume_updated_cb = NULL;
+    self->mute_updated_cb = NULL;
+    self->active_port_updated_cb = NULL;
     self->input_devices = NULL;
     self->output_devices = NULL;
     self->input_ports = NULL;
@@ -344,14 +353,29 @@ static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object()
     return self;
 }
 
-static void *m_pa_context_subscribe_cb(pa_context *c,                           
-                                       pa_subscription_event_type_t t,          
-                                       uint32_t idx,                            
-                                       void *userdata)                          
-{                                                                               
-    printf("DEBUG event notified %d %d\n", t, idx);        
+static void m_pa_sink_info_cb(pa_context *c, 
+                              const pa_sink_info *i, 
+                              int eol, 
+                              void *userdata) 
+{
+    printf("DEBUG %s %d\n", i->name, i->index);
 }
 
+static void m_pa_context_subscribe_cb(pa_context *c,                           
+                                      pa_subscription_event_type_t t,          
+                                      uint32_t idx,                            
+                                      void *userdata)                          
+{                                                                               
+    printf("DEBUG %d %d\n", t, idx);
+    switch (t & PA_SUBSCRIPTION_EVENT_FACILITY_MASK) {
+        case PA_SUBSCRIPTION_EVENT_SINK:
+            printf("DEBUG %d\n", idx);
+            pa_context_get_sink_info_by_index(c, idx, m_pa_sink_info_cb, NULL);
+            break;
+    }
+}
+
+/* http://freedesktop.org/software/pulseaudio/doxygen/subscribe.html */
 static void *m_pa_connect_loop_cb(void *arg) 
 {
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) arg;
@@ -404,28 +428,35 @@ RE_CONN:
         // At this point, we're connected to the server and ready to make          
         // requests                                                             
         switch (self->state) {                                                      
-            // State 0: we haven't done anything yet                            
+            // State 0: we haven't done anything yet
             case 0:                                                             
-                pa_op = pa_context_subscribe(pa_ctx,                          
-                        PA_SUBSCRIPTION_MASK_ALL,
+                pa_op = pa_context_subscribe(pa_ctx, (pa_subscription_mask_t)
+                        (PA_SUBSCRIPTION_MASK_SINK|          
+                        PA_SUBSCRIPTION_MASK_SOURCE|        
+                        PA_SUBSCRIPTION_MASK_SINK_INPUT|       
+                        PA_SUBSCRIPTION_MASK_SOURCE_OUTPUT| 
+                        PA_SUBSCRIPTION_MASK_CLIENT|        
+                        PA_SUBSCRIPTION_MASK_SERVER|    
+                        PA_SUBSCRIPTION_MASK_CARD),
                         NULL,                                                   
                         NULL);                                                  
                 self->state++;                                                      
                 break;                                                          
-            case 1:                                                             
+            case 1:                                              
                 if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {          
-                    pa_operation_unref(pa_op);                                  
-                    pa_context_set_subscribe_callback(pa_ctx,                     
+                    pa_operation_unref(pa_op);
+                    pa_context_set_subscribe_callback(pa_ctx,                       
                     m_pa_context_subscribe_cb,                                  
-                    NULL);                                                      
-                    self->state++;                                                  
-                }                                                               
-                break;                                                          
-            case 2:                                                             
-                usleep(100);                                                    
-                break;                                                          
+                    NULL);
+                    self->state++; 
+                }
+                break;
+            case 2:
+                usleep(100);
+                break;                                                   
             case 3:                                                             
                 // Now we're done, clean up and disconnect and return           
+                printf("DEBUG disconnect from pulse server\n");
                 pa_context_disconnect(pa_ctx);                                
                 pa_context_unref(pa_ctx);                                     
                 pa_mainloop_free(pa_ml);                                        
@@ -526,8 +557,10 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
     return self;
 }
 
+/* FIXME: fuzzy ... more object wait for destruction */
 static PyObject *m_delete(DeepinPulseAudioObject *self) 
 {
+    /* Why state is 3, please see m_pa_connect_loop_cb switch case 3 */
     self->state = 3;
     if (self->thread) 
         pthread_cancel(&self->thread);
@@ -546,12 +579,51 @@ static PyObject *m_delete(DeepinPulseAudioObject *self)
     return Py_None;
 }
 
+static PyObject *m_connect(DeepinPulseAudioObject *self, PyObject *args)         
+{                                                                               
+    char *signal = NULL;                                                         
+    PyObject *callback = NULL;                                                      
+                                                                                
+    if (!PyArg_ParseTuple(args, "sO:set_callback", &signal, &callback)) {             
+        ERROR("invalid arguments to connect");                                  
+        return NULL;                                                            
+    }                                                                           
+                                                                                
+    if (!PyCallable_Check(callback)) {                                              
+        Py_INCREF(Py_False);                                                    
+        return Py_False;                                                        
+    }                                                                           
+                                                                                
+    if (strcmp(signal, "volume-updated") == 0) {                                         
+        Py_XINCREF(callback);                                                       
+        Py_XDECREF(self->volume_updated_cb);                                           
+        self->volume_updated_cb = callback;                                                
+    }
+
+    if (strcmp(signal, "mute-updated") == 0) {                                     
+        Py_XINCREF(callback);                                                   
+        Py_XDECREF(self->mute_updated_cb);                                         
+        self->mute_updated_cb = callback;                                          
+    }
+
+    if (strcmp(signal, "active-port-updated") == 0) {                                     
+        Py_XINCREF(callback);                                                   
+        Py_XDECREF(self->active_port_updated_cb);                                         
+        self->active_port_updated_cb = callback;                                          
+    }                                                                           
+                                                                                
+    Py_INCREF(Py_True);                                                         
+    return Py_True;                                                             
+}
+
+/* FIXME: fuzzy ... get cards wanna you :) */
 static PyObject *m_get_cards(DeepinPulseAudioObject *self) 
 {
     Py_INCREF(Py_True);
     return Py_True;
 }
 
+/* http://freedesktop.org/software/pulseaudio/doxygen/introspect.html#sinksrc_subsec */
 static PyObject *m_get_devices(DeepinPulseAudioObject *self) 
 {
     // Define our pulse audio loop and connection variables                     

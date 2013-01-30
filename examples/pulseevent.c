@@ -89,29 +89,27 @@ RE_CONN:
         // At this point, we're connected to the server and ready to make
         // requests
         switch (m_state) {
-            // State 0: we haven't done anything yet
             case 0:
-                printf("try to enable event notification\n");
-                pa_op = pa_context_subscribe(m_pa_ctx,
-                        PA_SUBSCRIPTION_MASK_ALL,
-                        NULL, 
+                printf("try to set subscribe callback\n");
+                pa_context_set_subscribe_callback(m_pa_ctx,                     
+                    m_pa_context_subscribe_cb,                                  
+                    NULL);
+                pa_op = pa_context_subscribe(m_pa_ctx,                          
+                        PA_SUBSCRIPTION_MASK_SINK|          
+                        PA_SUBSCRIPTION_MASK_SOURCE|        
+                        PA_SUBSCRIPTION_MASK_SINK_INPUT|       
+                        PA_SUBSCRIPTION_MASK_SOURCE_OUTPUT| 
+                        PA_SUBSCRIPTION_MASK_CLIENT|        
+                        PA_SUBSCRIPTION_MASK_SERVER|        
+                        PA_SUBSCRIPTION_MASK_CARD,                               
+                        NULL,                                                   
                         NULL);
                 m_state++;
                 break;
             case 1:
-                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
-                    pa_operation_unref(pa_op);
-                    printf("try to set subscribe callback\n");
-                    pa_context_set_subscribe_callback(m_pa_ctx,                     
-                    m_pa_context_subscribe_cb,                                  
-                    NULL);
-                    m_state++;
-                }
-                break;
-            case 2:
                 usleep(100);
                 break;
-            case 3:
+            case 2:
                 // Now we're done, clean up and disconnect and return
                 printf("disconnect pulse server\n");
                 pa_context_disconnect(m_pa_ctx);
@@ -167,18 +165,34 @@ static void m_pa_client_info_cb(pa_context *c,
     printf("DEBUG %s\n", i ? i->name : NULL);
 }
 
+static void m_pa_sink_info_cb(pa_context *c,                                    
+                              const pa_sink_info *i,                            
+                              int eol,                                          
+                              void *userdata)                                   
+{                                                                               
+    printf("DEBUG %s %d\n", i ? i->name : NULL, i ? i->index : 0);                                 
+}
+
 static void m_pa_context_subscribe_cb(pa_context *c, 
                                       pa_subscription_event_type_t t, 
                                       uint32_t idx, 
                                       void *userdata) 
 {
-    printf("event notified %d %d\n", t, idx);
-    if (t == PA_SUBSCRIPTION_EVENT_CLIENT) {
-        printf("DEBUG client %d inserted\n", idx);
-        pa_context_get_client_info(c, idx, m_pa_client_info_cb, NULL);
-    }
-
-    if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
-        printf("DEBUG client %d removed\n", idx);
+    switch (t & PA_SUBSCRIPTION_EVENT_FACILITY_MASK) {
+        case PA_SUBSCRIPTION_EVENT_SINK:
+            if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
+                printf("DEBUG sink %d removed\n", idx);
+            } else {                                                              
+                pa_context_get_sink_info_by_index(c, idx, m_pa_sink_info_cb, NULL);
+            }
+            break;
+        case PA_SUBSCRIPTION_EVENT_CLIENT:
+            if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
+                printf("DEBUG client %d removed\n", idx);
+            } else {
+                printf("DEBUG client %d inserted\n", idx);
+                pa_context_get_client_info(c, idx, m_pa_client_info_cb, NULL);
+            }
+            break;
     }
 }
