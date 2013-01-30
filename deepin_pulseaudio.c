@@ -4,6 +4,7 @@
  *
  * Author:     Zhai Xiang <zhaixiang@linuxdeepin.com>
  * Maintainer: Zhai Xiang <zhaixiang@linuxdeepin.com>
+ *             Long Changjin <admin@longchangjin.cn>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1206,7 +1207,7 @@ static void m_pa_sinklist_cb(pa_context *c,
                        key,  
                        Py_BuildValue("(ns)", l->index, l->description));
         channel_value = PyList_New(0);
-        for (i = 0; i <= l->channel_map.channels; i++) {
+        for (i = 0; i < l->channel_map.channels; i++) {
             PyList_Append(channel_value, INT(l->channel_map.map[i]));
         }
         PyDict_SetItem(self->output_channels, key, channel_value);
@@ -1230,7 +1231,7 @@ static void m_pa_sinklist_cb(pa_context *c,
         PyDict_SetItem(self->output_mute, key, mute_value);
         Py_DecRef(mute_value);
         volume_value = PyList_New(0);
-        for (i = 0; i <= l->volume.channels; i++) {
+        for (i = 0; i < l->volume.channels; i++) {
             PyList_Append(volume_value, INT(l->volume.values[i]));
         }
         PyDict_SetItem(self->output_volume, key, volume_value);
@@ -1277,7 +1278,7 @@ static void m_pa_sourcelist_cb(pa_context *c,
                        key, 
                        Py_BuildValue("ns", l->index, l->description));    
         channel_value = PyList_New(0);                                              
-        for (i = 0; i <= l->channel_map.channels; i++) {                    
+        for (i = 0; i < l->channel_map.channels; i++) {                    
             PyList_Append(channel_value, INT(l->channel_map.map[i]));         
         }                                                                   
         key = STRING(l->name);                              
@@ -1302,7 +1303,7 @@ static void m_pa_sourcelist_cb(pa_context *c,
         PyDict_SetItem(self->output_mute, key, mute_value);            
         Py_DecRef(mute_value); 
         volume_value = PyList_New(0);
-        for (i = 0; i <= l->volume.channels; i++) {
+        for (i = 0; i < l->volume.channels; i++) {
             PyList_Append(volume_value, INT(l->volume.values[i]));
         }
         PyDict_SetItem(self->input_volume, key, volume_value);

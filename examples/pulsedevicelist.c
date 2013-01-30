@@ -189,6 +189,10 @@ void pa_sinklist_cb(pa_context *c, const pa_sink_info *l, int eol, void *userdat
     pa_devicelist_t *pa_devicelist = userdata;
     pa_sink_port_info **ports  = NULL;
     pa_sink_port_info *port = NULL;
+    pa_cvolume volume;
+    /*volume = malloc(sizeof(pa_cvolume));*/
+    /*memcpy(&volume, &l->volume, sizeof(pa_cvolume));*/
+    memset(&volume, 0, sizeof(pa_cvolume));
     int ctr = 0;
     int i = 0;
 
@@ -206,15 +210,38 @@ void pa_sinklist_cb(pa_context *c, const pa_sink_info *l, int eol, void *userdat
         if (! pa_devicelist[ctr].initialized) {
             strncpy(pa_devicelist[ctr].name, l->name, 511);
             strncpy(pa_devicelist[ctr].description, l->description, 255);
-            printf("DEBUG channel count %d\n", l->channel_map.channels);
-            for (i = 0; i <= l->channel_map.channels; i++) {
-                printf("DEBUG channel map %d\n", l->channel_map.map[i]);
+            printf("DEBUG channel count %d index:%d\n", l->channel_map.channels, l->index);
+            printf("map can balance %d\n", pa_channel_map_can_balance(&l->channel_map));
+            printf("get balance:%f\n", pa_cvolume_get_balance(&l->volume, &l->channel_map));
+            /*pa_cvolume_set(&l->volume, 0, 1000);*/
+            /*pa_cvolume_set(&l->volume, 1, 5000);*/
+            /*pa_cvolume_set(volume, 1, 1000);*/
+            /*pa_cvolume_set(volume, 2, 5000);*/
+            //pa_context_set_sink_volume_by_name(pa_context *c, const char *name, const pa_cvolume *volume, pa_context_success_cb_t cb, void *userdata);
+            //pa_context_set_sink_volume_by_index(pa_context *c, uint32_t idx, const pa_cvolume *volume, pa_context_success_cb_t cb, void *userdata);
+            volume.channels = l->volume.channels;
+            for (i = 0; i < l->volume.channels; i++)
+            {
+                volume.values[i] = 15000;
+                printf("\tvolume %d is %d\n", i, volume.values[i]);
+            }
+            pa_cvolume_set_balance(&volume, &l->channel_map, 0.5);
+            /*volume.values[0] = 1000;*/
+            /*volume.values[1] = 5000;*/
+            /*l->volume.values[0] = 1000;*/
+            /*l->volume.values[1] = 5000;*/
+            /*pa_context_set_sink_volume_by_name(c, l->name,  &l->volume, NULL, NULL);*/
+            pa_context_set_sink_volume_by_index(c, l->index,  &volume, NULL, NULL);
+            /*free(volume);*/
+            for (i = 0; i < l->channel_map.channels; i++) {
+                printf("DEBUG channel map %d, volume:%d\n", l->channel_map.map[i], l->volume.values[i]);
             }
             ports = l->ports;
             for (i = 0; i < l->n_ports; i++) {
                 port = ports[i];
                 printf("DEBUG %s %s\n", port->name, port->description);
             }
+            printf("sink------------------------------\n");
             pa_devicelist[ctr].index = l->index;
             pa_devicelist[ctr].initialized = 1;
             break;
@@ -239,10 +266,12 @@ void pa_sourcelist_cb(pa_context *c, const pa_source_info *l, int eol, void *use
             strncpy(pa_devicelist[ctr].name, l->name, 511);
             strncpy(pa_devicelist[ctr].description, l->description, 255);
             ports = l->ports;
+            printf("map can balance %d\n", pa_channel_map_can_balance(&l->channel_map));
             for (i = 0; i < l->n_ports; i++) {
                 port = ports[i];
                 printf("DEBUG %s %s\n", port->name, port->description);
             }
+            printf("source------------------------------\n");
             pa_devicelist[ctr].index = l->index;
             pa_devicelist[ctr].initialized = 1;
             break;
