@@ -1290,9 +1290,6 @@ static PyObject *m_set_input_volume(DeepinPulseAudioObject *self,
         return NULL;
     }
 
-    /*sprintf(buffer, "pacmd set-source-volume %d %d", index, volume);*/
-    /*system(buffer);*/
-
     if (!PyTuple_Check(volume)) {
         Py_INCREF(Py_False);
         return Py_False;
