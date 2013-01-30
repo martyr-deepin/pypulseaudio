@@ -20,12 +20,10 @@ int main(int argc, char *argv[]) {
     pthread_mutex_init(&m_mutex, NULL);
     pthread_create(&thread, NULL, m_pa_mainloop_cb, NULL);
 
-    /* TODO: test other pa operation
     sleep(3);
     if (m_pa_ctx) {
         pa_context_set_sink_mute_by_index(m_pa_ctx, 1, 1, NULL, NULL);
     }
-    */
 
     while (1) {
         sleep(1);
@@ -81,7 +79,7 @@ RE_CONN:
             pa_context_unref(m_pa_ctx);                                           
             pa_mainloop_free(pa_ml);
             /* wait for a while to reconnect to pulse server */
-            sleep(13);
+            sleep(3);
             goto RE_CONN;
         }
         // At this point, we're connected to the server and ready to make

@@ -134,7 +134,7 @@ RE_CONN:
 // This callback gets called when our context changes state.  We really only
 // care about when it's ready or if it has failed
 static void m_pa_state_cb(pa_context *c, void *userdata) {
-    //pthread_mutex_lock(&m_mutex);
+    pthread_mutex_lock(&m_mutex);
     pa_context_state_t state;
     int *pa_ready = userdata;
     
@@ -155,7 +155,7 @@ static void m_pa_state_cb(pa_context *c, void *userdata) {
             *pa_ready = 1;
             break;
     }
-    //pthread_mutex_unlock(&m_mutex);
+    pthread_mutex_unlock(&m_mutex);
 }
 
 static void m_pa_ext_stream_restore_read_cb(pa_context *c, 

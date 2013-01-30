@@ -1,9 +1,8 @@
 env = Environment(CCFLAGS='-g')
+env.ParseConfig('pkg-config --cflags --libs libpulse')
 
-env.Program('pulsedevicelist.c', LIBS=['libpulse'])
+env.Program('pulsedevicelist.c')
 
-env.Program('pulseevent.c', LIBS=['libpulse'])
+env.Program('pulseevent.c')
 
-env.Program('pulsestream.c', LIBS=['libpulse'])
-
-env.SharedLibrary('libhello_loop', ['hello_loop.c'], LIBS=['libpthread'])
+env.Program('pulsestream.c')
