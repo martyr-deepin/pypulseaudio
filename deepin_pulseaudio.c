@@ -1753,6 +1753,12 @@ static void m_pa_sourcelist_cb(pa_context *c,
         printf("PyList_New error");
         return;
     }
+    prop_dict = PyDict_New();
+    if (!prop_dict) {
+        printf("PyDict_New error\n");
+        return;
+    }
+        
     port_list = PyList_New(0);
     if (!port_list) {
         printf("PyList_New error");
@@ -1764,7 +1770,6 @@ static void m_pa_sourcelist_cb(pa_context *c,
         PyDict_SetItemString(prop_dict, prop_key,
                              STRING(pa_proplist_gets(l->proplist, prop_key)));
     }
-    printf("DEBUG xx 1in m_pa_sourcelist_cb\n");
     PyDict_SetItem(self->input_devices, key,
                    Py_BuildValue("{sssssIsO}",
                                  "name", l->name,
@@ -1775,7 +1780,6 @@ static void m_pa_sourcelist_cb(pa_context *c,
     for (i = 0; i < l->channel_map.channels; i++) {                    
         PyList_Append(channel_value, INT(l->channel_map.map[i]));         
     }                                                                   
-    printf("DEBUG xx 2in m_pa_sourcelist_cb\n");
     PyDict_SetItem(self->input_channels, key,
                    Py_BuildValue("{sisnsO}",
                                  "can_balance", pa_channel_map_can_balance(&l->channel_map),
@@ -1791,7 +1795,6 @@ static void m_pa_sourcelist_cb(pa_context *c,
                                                port->description,
                                                port->available));
     } 
-    printf("DEBUG xx 3in m_pa_sourcelist_cb\n");
     PyDict_SetItem(self->input_ports, key,
                    Py_BuildValue("{snsO}",
                                  "n_ports", l->n_ports,
