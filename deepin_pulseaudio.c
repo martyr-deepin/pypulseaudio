@@ -830,6 +830,7 @@ static PyObject *m_get_output_ports(DeepinPulseAudioObject *self)
 
 static PyObject *m_get_input_ports(DeepinPulseAudioObject *self)               
 {                                                                                  
+    return self->input_ports;
     if (self->input_ports) {
         Py_INCREF(self->input_ports);
         return self->input_ports;
@@ -852,15 +853,15 @@ static PyObject *m_get_input_devices(DeepinPulseAudioObject *self)
 static PyObject *m_get_output_channels(DeepinPulseAudioObject *self, 
                                        PyObject *args) 
 {
-    char *device = NULL;
+    int device = -1;
     
-    if (!PyArg_ParseTuple(args, "s", &device)) {
+    if (!PyArg_ParseTuple(args, "i", &device)) {
         ERROR("invalid arguments to get_output_channels");
         return NULL;
     }
     
-    if (PyDict_Contains(self->output_channels, STRING(device))) 
-        return PyDict_GetItemString(self->output_channels, device);
+    if (PyDict_Contains(self->output_channels, INT(device))) 
+        return PyDict_GetItem(self->output_channels, INT(device));
     else 
         return self->output_channels;
 }
@@ -868,31 +869,31 @@ static PyObject *m_get_output_channels(DeepinPulseAudioObject *self,
 static PyObject *m_get_input_channels(DeepinPulseAudioObject *self,            
                                       PyObject *args)                          
 {                                                                               
-    char *device = NULL;                                                        
+    /*int device = -1;*/
+    
+    /*if (!PyArg_ParseTuple(args, "i", &device)) {*/
+        /*ERROR("invalid arguments to get_input_channels");                      */
+        /*return NULL;                                                            */
+    /*} */
                                                                                 
-    if (!PyArg_ParseTuple(args, "s", &device)) {                                
-        ERROR("invalid arguments to get_input_channels");                      
-        return NULL;                                                            
-    } 
-                                                                                
-    if (PyDict_Contains(self->input_channels, STRING(device))) 
-        return PyDict_GetItemString(self->input_channels, device);
-    else                                                      
+    /*if (PyDict_Contains(self->input_channels, INT(device))) */
+        /*return PyDict_GetItem(self->input_channels, INT(device));*/
+    /*else                                                      */
         return self->input_channels;                    
 }             
 
 static PyObject *m_get_output_active_ports(DeepinPulseAudioObject *self,        
                                            PyObject *args)                      
 {                                                                               
-    char *device = NULL;                                                        
-                                                                                
-    if (!PyArg_ParseTuple(args, "s", &device)) {                                
+    int device = -1;
+    
+    if (!PyArg_ParseTuple(args, "i", &device)) {
         ERROR("invalid arguments to get_output_active_ports");                      
         return NULL;                                                            
     }                                                                           
                                                                                 
-    if (PyDict_Contains(self->output_active_ports, STRING(device)))    
-        return PyDict_GetItemString(self->output_active_ports, device);
+    if (PyDict_Contains(self->output_active_ports, INT(device)))    
+        return PyDict_GetItem(self->output_active_ports, INT(device));
     else                                                                
         return self->output_active_ports;    
 }           
@@ -900,15 +901,16 @@ static PyObject *m_get_output_active_ports(DeepinPulseAudioObject *self,
 static PyObject *m_get_input_active_ports(DeepinPulseAudioObject *self,           
                                           PyObject *args)                         
 {                                                                                  
-    char *device = NULL;                                                           
-                                                                                   
-    if (!PyArg_ParseTuple(args, "s", &device)) {                                   
+    return self->input_active_ports; 
+    int device = -1;
+    
+    if (!PyArg_ParseTuple(args, "i", &device)) {
         ERROR("invalid arguments to get_input_active_ports");                          
         return NULL;                                                               
     }                                                                              
                                                                                    
-    if (PyDict_Contains(self->input_active_ports, STRING(device)))              
-        return PyDict_GetItemString(self->input_active_ports, device);
+    if (PyDict_Contains(self->input_active_ports, INT(device)))              
+        return PyDict_GetItem(self->input_active_ports, INT(device));
     else                                                               
         return self->input_active_ports; 
 }                
@@ -932,15 +934,16 @@ static PyObject *m_get_output_mute(DeepinPulseAudioObject *self, PyObject *args)
 
 static PyObject *m_get_input_mute(DeepinPulseAudioObject *self, PyObject *args) 
 {                                                                               
-    char *device = NULL;                                                        
-                                                                                
-    if (!PyArg_ParseTuple(args, "s", &device)) {                                
+    return self->input_mute;
+    int device = -1;
+    
+    if (!PyArg_ParseTuple(args, "i", &device)) {
         ERROR("invalid arguments to get_input_mute");                              
         return NULL;                                                            
     }                                                                           
                                                                                 
-    if (PyDict_Contains(self->input_mute, STRING(device))) {                   
-        return PyDict_GetItem(self->input_mute, STRING(device));               
+    if (PyDict_Contains(self->input_mute, INT(device))) {                   
+        return PyDict_GetItem(self->input_mute, INT(device));               
     } else {                                                                    
         Py_INCREF(Py_False);                                                    
         return Py_False;                                                        
@@ -950,15 +953,15 @@ static PyObject *m_get_input_mute(DeepinPulseAudioObject *self, PyObject *args)
 static PyObject *m_get_output_volume(DeepinPulseAudioObject *self, 
                                      PyObject *args) 
 {                                                                               
-    char *device = NULL;                                                        
-                                                                                
-    if (!PyArg_ParseTuple(args, "s", &device)) {                                
+    int device = -1;
+    
+    if (!PyArg_ParseTuple(args, "i", &device)) {
         ERROR("invalid arguments to get_output_volume");                              
         return NULL;                                                            
     }                                                                           
                                                                                 
-    if (PyDict_Contains(self->output_volume, STRING(device))) 
-        return PyDict_GetItem(self->output_volume, STRING(device));               
+    if (PyDict_Contains(self->output_volume, INT(device))) 
+        return PyDict_GetItem(self->output_volume, INT(device));               
     else
         return self->output_volume;
 }           
@@ -966,15 +969,16 @@ static PyObject *m_get_output_volume(DeepinPulseAudioObject *self,
 static PyObject *m_get_input_volume(DeepinPulseAudioObject *self,              
                                     PyObject *args)                            
 {                                                                               
-    char *device = NULL;                                                        
-                                                                                
-    if (!PyArg_ParseTuple(args, "s", &device)) {                                
+    return self->input_volume;                                             
+    int device = -1;
+    
+    if (!PyArg_ParseTuple(args, "i", &device)) {
         ERROR("invalid arguments to get_input_volume");                            
         return NULL;                                                            
     }                                                                           
                                                                                 
-    if (PyDict_Contains(self->input_volume, STRING(device)))                   
-        return PyDict_GetItem(self->input_volume, STRING(device));             
+    if (PyDict_Contains(self->input_volume, INT(device)))                   
+        return PyDict_GetItem(self->input_volume, INT(device));             
     else                                                                        
         return self->input_volume;                                             
 }                                                                                        
@@ -1658,12 +1662,12 @@ static void m_pa_sinklist_cb(pa_context *c,
         PyDict_SetItemString(prop_dict, prop_key,
                              STRING(pa_proplist_gets(l->proplist, prop_key)));
     }
-    PyDict_SetItem(self->output_devices, key,
-                   Py_BuildValue("{sssssIsO}",
-                                 "name", l->name,
-                                 "description", l->description,
-                                 "base_volume", l->base_volume,
-                                 "proplist", prop_dict));
+    /*PyDict_SetItem(self->output_devices, key,*/
+                   /*Py_BuildValue("{sssssIsO}",*/
+                                 /*"name", l->name,*/
+                                 /*"description", l->description,*/
+                                 /*"base_volume", l->base_volume,*/
+                                 /*"proplist", prop_dict));*/
     // channel list
     for (i = 0; i < l->channel_map.channels; i++) {
         PyList_Append(channel_value, INT(l->channel_map.map[i]));
@@ -1701,6 +1705,7 @@ static void m_pa_sinklist_cb(pa_context *c,
     }
     // mute
     mute_value = l->mute ? Py_True : Py_False;
+    Py_INCREF(key);
     PyDict_SetItem(self->output_mute, key, mute_value);
     Py_DecRef(mute_value);
     // volume list
@@ -1708,6 +1713,12 @@ static void m_pa_sinklist_cb(pa_context *c,
         PyList_Append(volume_value, INT(l->volume.values[i]));
     }
     PyDict_SetItem(self->output_volume, key, volume_value);
+    PyDict_SetItem(self->output_devices, key,
+                   Py_BuildValue("{sssssIsO}",
+                                 "name", l->name,
+                                 "description", l->description,
+                                 "base_volume", l->base_volume,
+                                 "proplist", prop_dict));
     Py_DecRef(key);
     Py_DecRef(volume_value);
 }                   
@@ -1733,7 +1744,6 @@ static void m_pa_sourcelist_cb(pa_context *c,
     const char *prop_key;
     void *prop_state = NULL;
                                                                                 
-    printf("in m_pa_sourcelist_cb\n");
     if (eol > 0) {                                                              
         return;                                                                 
     }
@@ -1770,12 +1780,6 @@ static void m_pa_sourcelist_cb(pa_context *c,
         PyDict_SetItemString(prop_dict, prop_key,
                              STRING(pa_proplist_gets(l->proplist, prop_key)));
     }
-    PyDict_SetItem(self->input_devices, key,
-                   Py_BuildValue("{sssssIsO}",
-                                 "name", l->name,
-                                 "description", l->description,
-                                 "base_volume", l->base_volume,
-                                 "proplist", prop_dict));    
     // channel list
     for (i = 0; i < l->channel_map.channels; i++) {                    
         PyList_Append(channel_value, INT(l->channel_map.map[i]));         
@@ -1795,10 +1799,6 @@ static void m_pa_sourcelist_cb(pa_context *c,
                                                port->description,
                                                port->available));
     } 
-    PyDict_SetItem(self->input_ports, key,
-                   Py_BuildValue("{snsO}",
-                                 "n_ports", l->n_ports,
-                                 "ports", port_list));
     // active port
     active_port = l->active_port;                                       
     if (active_port) {
@@ -1812,9 +1812,10 @@ static void m_pa_sourcelist_cb(pa_context *c,
         PyDict_SetItem(self->input_active_ports, key, Py_None);
     }
     // mute
-    mute_value = l->mute ? Py_True : Py_False;                          
-    PyDict_SetItem(self->output_mute, key, mute_value);            
-    Py_DecRef(mute_value); 
+    /*mute_value = l->mute ? Py_True : Py_False;                          */
+    /*Py_INCREF(mute_value);*/
+    /*PyDict_SetItem(self->output_mute, key, mute_value);            */
+    /*Py_DecRef(mute_value); */
     // volume list
     volume_value = PyList_New(0);
     for (i = 0; i < l->volume.channels; i++) {
@@ -1823,4 +1824,13 @@ static void m_pa_sourcelist_cb(pa_context *c,
     PyDict_SetItem(self->input_volume, key, volume_value);
     Py_DecRef(key);
     Py_DecRef(volume_value);
+    PyDict_SetItem(self->input_devices, key,
+                   Py_BuildValue("{sssssisIsOsOsO}",
+                                 "name", l->name,
+                                 "description", l->description,
+                                 "base_volume", l->base_volume,
+                                 "n_ports", l->n_ports,
+                                 "mute", PyBool_FromLong(l->mute),
+                                 "ports", port_list,
+                                 "proplist", prop_dict));    
 }                   
