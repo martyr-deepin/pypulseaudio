@@ -1483,12 +1483,17 @@ static void m_pa_cardlist_cb(pa_context *c,
         return;
     }
     PyObject *card_dict = NULL;         // a dict save the card info
-    PyObject *profile_list = NULL;
+    PyObject *profile_list = NULL;      // card_profile_info list
     PyObject *profile_dict = NULL;
+    PyObject *port_list = NULL;         // card_port_info
+    PyObject *port_dict = NULL;
     PyObject *active_profile = NULL;
+    PyObject *prop_dict = NULL;
     PyObject *key = NULL, *sub_key = NULL;
 
     int ctr = 0;
+    const char *prop_key;
+    void *prop_state = NULL;
 
     card_dict = PyDict_New();
     if (!card_dict) {
@@ -1502,14 +1507,26 @@ static void m_pa_cardlist_cb(pa_context *c,
         return;
     }
 
+    prop_dict = PyDict_New();
+    if (!prop_dict) {
+        printf("PyDict_New error");
+        return;
+    }
+
     profile_list = PyList_New(0);
     if (!profile_list) {
+        printf("PyList_New error");
+        return;
+    }
+    port_list = PyList_New(0);
+    if (!port_list) {
         printf("PyList_New error");
         return;
     }
     PyDict_SetItemString(card_dict, "name", STRING(i->name));
     PyDict_SetItemString(card_dict, "n_profiles", INT(i->n_profiles));
 
+    // profile list
     for (ctr = 0; ctr < i->n_profiles; ctr++) {
         profile_dict = PyDict_New();
         if (!profile_dict) {
@@ -1529,9 +1546,49 @@ static void m_pa_cardlist_cb(pa_context *c,
                              INT(i->profiles[ctr].n_sources));
         PyList_Append(profile_list, profile_dict);
     }
-    key = STRING("profiles");
-    PyDict_SetItem(card_dict, key, profile_list);
-    Py_DecRef(key);
+    PyDict_SetItemString(card_dict, "profiles", profile_list);
+    // active profile
+    if (i->active_profile) {
+        PyDict_SetItemString(active_profile, "name",
+                             STRING(i->active_profile->name));
+        PyDict_SetItemString(active_profile, "description",
+                             STRING(i->active_profile->description));
+        PyDict_SetItemString(active_profile, "n_sinks",
+                             INT(i->active_profile->n_sinks));
+        PyDict_SetItemString(active_profile, "n_sources",
+                             INT(i->active_profile->n_sources));
+        PyDict_SetItemString(card_dict, "active_profile", active_profile);
+    } else {
+        Py_INCREF(Py_None);
+        PyDict_SetItemString(card_dict, "active_profile", Py_None);
+    }
+    // proplist
+    while ((prop_key=pa_proplist_iterate(i->proplist, &prop_state))) {
+        PyDict_SetItemString(prop_dict, prop_key,
+                             STRING(pa_proplist_gets(i->proplist, prop_key)));
+    }
+    PyDict_SetItemString(card_dict, "proplist", prop_dict);
+    PyDict_SetItemString(card_dict, "n_ports", INT(i->n_ports));
+    // ports list
+    for (ctr = 0; ctr < i->n_ports; ctr++) {
+        port_dict = PyDict_New();
+        if (!port_dict) {
+            printf("PyDict_New error");
+            return;
+        }
+        PyDict_SetItemString(port_dict, "name", 
+                             STRING(i->ports[ctr]->name));
+        PyDict_SetItemString(port_dict, "description", 
+                             STRING(i->ports[ctr]->description));
+        PyDict_SetItemString(port_dict, "available", 
+                             INT(i->ports[ctr]->available));
+        PyDict_SetItemString(port_dict, "direction", 
+                             INT(i->ports[ctr]->direction));
+        PyDict_SetItemString(port_dict, "n_profiles", 
+                             INT(i->ports[ctr]->n_profiles));
+        PyList_Append(port_list, port_dict);
+    }
+    PyDict_SetItemString(card_dict, "ports", port_list);
 
     key = INT(i->index);
     PyDict_SetItem(self->card_devices, key, card_dict);
