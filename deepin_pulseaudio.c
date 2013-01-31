@@ -378,6 +378,7 @@ static void m_pa_sink_info_cb(pa_context *c,
     if (!info) 
         return;
 
+    /* TODO: thread lock */
     gstate = PyGILState_Ensure();
 
     if (self->sink_changed_cb) {
@@ -391,11 +392,11 @@ static void m_pa_sink_info_cb(pa_context *c,
             volumes, 
             INT(info->mute), 
             info->active_port->name);
-        Py_DecRef(volumes);
-        volumes = NULL;
     }
     
+    /* FIXME: why can not unlock ?! 
     PyGILState_Release(gstate);
+    */
 }
 
 static void m_pa_context_subscribe_cb(pa_context *c,                           
@@ -406,20 +407,16 @@ static void m_pa_context_subscribe_cb(pa_context *c,
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
         
     switch (t & PA_SUBSCRIPTION_EVENT_FACILITY_MASK) {                          
-        /* FIXME: sink event can not notified! */
         case PA_SUBSCRIPTION_EVENT_SINK:                                        
             if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
                 printf("DEBUG sink %d removed\n", idx);
             } else {
-                printf("DEBUG sink %d inserted\n", idx);
                 pa_context_get_sink_info_by_index(c, idx, m_pa_sink_info_cb, self);
             }                                                                   
             break;                                                              
         case PA_SUBSCRIPTION_EVENT_CLIENT:                                      
             if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
-                //printf("DEBUG client %d removed\n", idx);                       
             } else {                                                            
-                //printf("DEBUG client %d inserted\n", idx);                      
                 pa_context_get_client_info(c, idx, m_pa_client_info_cb, NULL);  
             }                                                                   
             break;                                                              
@@ -613,10 +610,11 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
 /* FIXME: fuzzy ... more object wait for destruction */
 static PyObject *m_delete(DeepinPulseAudioObject *self) 
 {
-    /* Why state is 3, please see m_pa_connect_loop_cb switch case 3 */
+    /* Why state is 3, please see m_pa_connect_loop_cb switch case 3
     self->state = 3;
     if (self->thread) 
         pthread_cancel(&self->thread);
+    */
     
     if (self->output_devices) {
         Py_DecRef(self->output_devices);
