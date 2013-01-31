@@ -46,6 +46,7 @@ typedef struct {
     PyObject *sink_changed_cb;
     PyObject *source_changed_cb;
     PyObject *card_changed_cb;
+    PyObject *card_devices;
     PyObject *input_devices;
     PyObject *output_devices;
     PyObject *input_ports;
@@ -85,6 +86,10 @@ static PyMethodDef deepin_pulseaudio_methods[] =
 static PyObject *m_delete(DeepinPulseAudioObject *self);
 static PyObject *m_connect(DeepinPulseAudioObject *self, PyObject *args);
 static void m_pa_state_cb(pa_context *c, void *userdata);                                
+static void m_pa_cardlist_cb(pa_context *c,
+                             const pa_card_info *i,
+                             int eol,
+                             void *userdata);
 static void m_pa_sinklist_cb(pa_context *c, 
                              const pa_sink_info *l, 
                              int eol, 
@@ -342,6 +347,7 @@ static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object()
     self->sink_changed_cb = NULL;
     self->source_changed_cb = NULL;
     self->card_changed_cb = NULL;
+    self->card_devices = NULL;
     self->input_devices = NULL;
     self->output_devices = NULL;
     self->input_ports = NULL;
@@ -535,6 +541,13 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
     if (!self)
         return NULL;
 
+    self->card_devices = PyDict_New();
+    if (!self->card_devices) {
+        ERROR("PyDict_New error");
+        m_delete(self);
+        return NULL;
+    }
+
     self->input_devices = PyDict_New();
     if (!self->input_devices) {
         ERROR("PyDict_New error");
@@ -669,12 +682,17 @@ static PyObject *m_connect(DeepinPulseAudioObject *self, PyObject *args)
     return Py_True;                                                             
 }
 
-/* FIXME: fuzzy ... get cards wanna you :) */
 static PyObject *m_get_cards(DeepinPulseAudioObject *self) 
 {
-    Py_INCREF(Py_True);
-    return Py_True;
+    if (self->card_devices) {
+        Py_INCREF(self->card_devices);
+        return self->card_devices;
+    } else {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
 }
+
 
 /* http://freedesktop.org/software/pulseaudio/doxygen/introspect.html#sinksrc_subsec */
 static PyObject *m_get_devices(DeepinPulseAudioObject *self) 
@@ -689,6 +707,7 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
     int state = 0;                                                              
     int pa_ready = 0;                                                           
 
+    PyDict_Clear(self->card_devices);
     PyDict_Clear(self->output_devices);
     PyDict_Clear(self->input_devices);
     PyDict_Clear(self->output_channels);
@@ -766,6 +785,15 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
                 }                                                               
                 break;                                                          
             case 2:                                                             
+                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
+                    pa_operation_unref(pa_op);
+                    // Now wo perform another operation to get the card list.
+                    pa_op = pa_context_get_card_info_list(pa_ctx,
+                            m_pa_cardlist_cb, self);
+                    state++;
+                }
+                break;
+            case 3:
                 if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {       
                     // Now we're done, clean up and disconnect and return       
                     pa_operation_unref(pa_op);                                  
@@ -1446,6 +1474,71 @@ static void m_pa_state_cb(pa_context *c, void *userdata) {
     pthread_mutex_unlock(&m_mutex);
 }
 
+static void m_pa_cardlist_cb(pa_context *c,
+                             const pa_card_info *i,
+                             int eol,
+                             void *userdata)
+{
+    DeepinPulseAudioObject *self = userdata;
+    // If eol is set to a positive number, you're at the end of the list        
+    if (eol > 0) {
+        return;
+    }
+    PyObject *card_dict = NULL;         // a dict save the card info
+    PyObject *profile_list = NULL;
+    PyObject *profile_dict = NULL;
+    PyObject *active_profile = NULL;
+    PyObject *key = NULL, *sub_key = NULL;
+
+    int ctr = 0;
+
+    card_dict = PyDict_New();
+    if (!card_dict) {
+        printf("PyDict_New error");
+        return;
+    }
+
+    active_profile = PyDict_New();
+    if (!active_profile) {
+        printf("PyDict_New error");
+        return;
+    }
+
+    profile_list = PyList_New(0);
+    if (!profile_list) {
+        printf("PyList_New error");
+        return;
+    }
+    PyDict_SetItemString(card_dict, "name", STRING(i->name));
+    PyDict_SetItemString(card_dict, "n_profiles", INT(i->n_profiles));
+
+    for (ctr = 0; ctr < i->n_profiles; ctr++) {
+        profile_dict = PyDict_New();
+        if (!profile_dict) {
+            printf("PyDict_New error");
+            return;
+        }
+        PyDict_SetItemString(profile_dict, "name",
+                             STRING(i->profiles[ctr].name));
+
+        PyDict_SetItemString(profile_dict, "description",
+                             STRING(i->profiles[ctr].description));
+
+        PyDict_SetItemString(profile_dict, "n_sinks",
+                             INT(i->profiles[ctr].n_sinks));
+
+        PyDict_SetItemString(profile_dict, "n_sources",
+                             INT(i->profiles[ctr].n_sources));
+        PyList_Append(profile_list, profile_dict);
+    }
+    key = STRING("profiles");
+    PyDict_SetItem(card_dict, key, profile_list);
+    Py_DecRef(key);
+
+    key = INT(i->index);
+    PyDict_SetItem(self->card_devices, key, card_dict);
+    Py_DecRef(key);
+}
 // pa_mainloop will call this function when it's ready to tell us about a sink. 
 // Since we're not threading, there's no need for mutexes on the devicelist     
 // structure                                                                    
