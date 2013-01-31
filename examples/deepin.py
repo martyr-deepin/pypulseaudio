@@ -21,6 +21,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import deepin_pulseaudio
+import time
 
 def m_sink_changed_cb(name, index, volume, mute, active_port):
     print "DEBUG sink changed callback", name, index, volume, mute, active_port
@@ -79,7 +80,16 @@ def test():
     print "========set_input_volume testcase========"                      
     print deepin_pulseaudio_obj.set_input_volume(2, (80000, 80000)) 
 
+'''
 i = 0
 while i < 1024:
     test()
     i += 1
+'''
+
+test()
+
+while True:
+    time.sleep(100)
+
+deepin_pulseaudio_obj.delete()
