@@ -4,3 +4,5 @@ env.ParseConfig('pkg-config --cflags --libs libpulse')
 env.Program('pulsedevicelist.c')
 
 env.Program('pulseevent.c')
+
+env.Program('pulsecard.c')
