@@ -24,6 +24,7 @@
 #include <pulse/pulseaudio.h>
 #include <pthread.h>
 
+#define PACKAGE "Deepin PulseAudio Python Binding"
 #define DEVICE_NUM 16
 
 #define INT(v) PyInt_FromLong(v)
@@ -446,8 +447,8 @@ RE_CONN:
                                                                                 
     // Create a mainloop API and connection to the default server               
     pa_ml = pa_mainloop_new();                                                  
-    pa_mlapi = pa_mainloop_get_api(pa_ml);                                      
-    pa_ctx = pa_context_new(pa_mlapi, "deepin_thread");                                
+    pa_mlapi = pa_mainloop_get_api(pa_ml);
+    pa_ctx = pa_context_new(pa_mlapi, PACKAGE);
                                                                                 
     // This function connects to the pulse server                               
     pa_context_connect(pa_ctx, NULL, 0, NULL);                                
@@ -469,8 +470,8 @@ RE_CONN:
         // We couldn't get a connection to the server, so exit out              
         if (pa_ready == 2) {                                                    
             pa_context_disconnect(pa_ctx);                                    
-            pa_context_unref(pa_ctx);                                         
-            pa_mainloop_free(pa_ml);                                            
+            pa_context_unref(pa_ctx);
+            pa_mainloop_free(pa_ml);
             /* wait for a while to reconnect to pulse server */                 
             sleep(13);                                                           
             goto RE_CONN;                                                       
@@ -495,11 +496,13 @@ RE_CONN:
                         NULL);
                 self->state++;                                                      
                 break;                                                          
-            case 1:                                              
+            case 1:
+                pthread_mutex_lock(&m_mutex);
                 if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {          
                     pa_operation_unref(pa_op);
                     self->state++; 
                 }
+                pthread_mutex_unlock(&m_mutex);
                 break;
             case 2:
                 usleep(100);
@@ -508,8 +511,8 @@ RE_CONN:
                 // Now we're done, clean up and disconnect and return           
                 printf("DEBUG disconnect from pulse server\n");
                 pa_context_disconnect(pa_ctx);                                
-                pa_context_unref(pa_ctx);                                     
-                pa_mainloop_free(pa_ml);                                        
+                pa_context_unref(pa_ctx);
+                pa_mainloop_free(pa_ml);
                 return NULL;                                                    
             default:                                                            
                 // We should never see this state
@@ -700,7 +703,7 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
     // Create a mainloop API and connection to the default server               
     pa_ml = pa_mainloop_new();                                                  
     pa_mlapi = pa_mainloop_get_api(pa_ml);                                      
-    pa_ctx = pa_context_new(pa_mlapi, "deepin");       
+    pa_ctx = pa_context_new(pa_mlapi, PACKAGE);       
                                                                                 
     // This function connects to the pulse server                               
     pa_context_connect(pa_ctx, NULL, 0, NULL);
@@ -969,7 +972,7 @@ static PyObject *m_set_output_active_port(DeepinPulseAudioObject *self,
                                                                                 
     pa_ml = pa_mainloop_new();                                                  
     pa_mlapi = pa_mainloop_get_api(pa_ml);                                      
-    pa_ctx = pa_context_new(pa_mlapi, "deepin");                                
+    pa_ctx = pa_context_new(pa_mlapi, PACKAGE);                                
                                                                                 
     pa_context_connect(pa_ctx, NULL, 0, NULL);
     pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);            
@@ -1035,7 +1038,7 @@ static PyObject *m_set_input_active_port(DeepinPulseAudioObject *self,
                                                                                 
     pa_ml = pa_mainloop_new();                                                  
     pa_mlapi = pa_mainloop_get_api(pa_ml);                                      
-    pa_ctx = pa_context_new(pa_mlapi, "deepin");                                
+    pa_ctx = pa_context_new(pa_mlapi, PACKAGE);                                
                                                                                 
     pa_context_connect(pa_ctx, NULL, 0, NULL);                                  
     pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);            
@@ -1106,7 +1109,7 @@ static PyObject *m_set_output_mute(DeepinPulseAudioObject *self,
                                                                             
     pa_ml = pa_mainloop_new();                                                  
     pa_mlapi = pa_mainloop_get_api(pa_ml);                                      
-    pa_ctx = pa_context_new(pa_mlapi, "deepin");                                
+    pa_ctx = pa_context_new(pa_mlapi, PACKAGE);                                
                                                                                 
     pa_context_connect(pa_ctx, NULL, 0, NULL);
     pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);            
@@ -1174,7 +1177,7 @@ static PyObject *m_set_input_mute(DeepinPulseAudioObject *self,
 
     pa_ml = pa_mainloop_new();                                                  
     pa_mlapi = pa_mainloop_get_api(pa_ml);                                      
-    pa_ctx = pa_context_new(pa_mlapi, "deepin");                                
+    pa_ctx = pa_context_new(pa_mlapi, PACKAGE);                                
                                                                                 
     pa_context_connect(pa_ctx, NULL, 0, NULL);
     pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);            
@@ -1249,7 +1252,7 @@ static PyObject *m_set_output_volume(DeepinPulseAudioObject *self,
 
     pa_ml = pa_mainloop_new();
     pa_mlapi = pa_mainloop_get_api(pa_ml);
-    pa_ctx = pa_context_new(pa_mlapi, "deepin");
+    pa_ctx = pa_context_new(pa_mlapi, PACKAGE);
 
     pa_context_connect(pa_ctx, NULL, 0, NULL);
     pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);
@@ -1347,7 +1350,7 @@ static PyObject *m_set_input_volume(DeepinPulseAudioObject *self,
 
     pa_ml = pa_mainloop_new();
     pa_mlapi = pa_mainloop_get_api(pa_ml);
-    pa_ctx = pa_context_new(pa_mlapi, "deepin");
+    pa_ctx = pa_context_new(pa_mlapi, PACKAGE);
 
     pa_context_connect(pa_ctx, NULL, 0, NULL);
     pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);

@@ -79,4 +79,7 @@ def test():
     print "========set_input_volume testcase========"                      
     print deepin_pulseaudio_obj.set_input_volume(2, (80000, 80000)) 
 
-test()
+i = 0
+while i < 1024:
+    test()
+    i += 1
