@@ -15,3 +15,11 @@
 *.exe
 *.out
 *.app
+
+# python files
+*.pyc
+*.pyo
+
+# vim files
+*.swo
+*.swp

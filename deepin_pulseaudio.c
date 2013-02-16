@@ -46,6 +46,7 @@ typedef struct {
     PyObject *sink_changed_cb;
     PyObject *source_changed_cb;
     PyObject *card_changed_cb;
+    PyObject *server_info;
     PyObject *card_devices;
     PyObject *input_devices;
     PyObject *output_devices;
@@ -86,6 +87,9 @@ static PyMethodDef deepin_pulseaudio_methods[] =
 static PyObject *m_delete(DeepinPulseAudioObject *self);
 static PyObject *m_connect(DeepinPulseAudioObject *self, PyObject *args);
 static void m_pa_state_cb(pa_context *c, void *userdata);                                
+static void m_pa_server_info_cb(pa_context *c,
+                                const pa_server_info *i,
+                                void *userdate);
 static void m_pa_cardlist_cb(pa_context *c,
                              const pa_card_info *i,
                              int eol,
@@ -98,6 +102,7 @@ static void m_pa_sourcelist_cb(pa_context *c,
                                const pa_source_info *l, 
                                int eol, 
                                void *userdata);
+static PyObject *m_get_server_info(DeepinPulseAudioObject *self);
 static PyObject *m_get_cards(DeepinPulseAudioObject *self);
 static PyObject *m_get_devices(DeepinPulseAudioObject *self);
 static PyObject *m_get_output_devices(DeepinPulseAudioObject *self);
@@ -123,6 +128,9 @@ static PyObject *m_get_output_mute_by_index(DeepinPulseAudioObject *self, PyObje
 static PyObject *m_get_input_mute(DeepinPulseAudioObject *self);
 static PyObject *m_get_input_mute_by_index(DeepinPulseAudioObject *self, PyObject *args);
 
+static PyObject *m_get_fallback_sink(DeepinPulseAudioObject *self);
+static PyObject *m_get_fallback_source(DeepinPulseAudioObject *self);
+
 static PyObject *m_get_output_volume(DeepinPulseAudioObject *self);
 static PyObject *m_get_output_volume_by_index(DeepinPulseAudioObject *self, PyObject *args);
 static PyObject *m_get_input_volume(DeepinPulseAudioObject *self);
@@ -139,10 +147,15 @@ static PyObject *m_set_output_volume_with_balance(DeepinPulseAudioObject *self, 
 static PyObject *m_set_input_volume(DeepinPulseAudioObject *self, PyObject *args);
 static PyObject *m_set_input_volume_with_balance(DeepinPulseAudioObject *self, PyObject *args);
 
+static PyObject *m_set_fallback_sink(DeepinPulseAudioObject *self, PyObject *args);
+static PyObject *m_set_fallback_source(DeepinPulseAudioObject *self, PyObject *args);
+
+
 static PyMethodDef deepin_pulseaudio_object_methods[] = 
 {
     {"delete", m_delete, METH_NOARGS, "Deepin PulseAudio destruction"}, 
     {"connect", m_connect, METH_VARARGS, "Connect signal callback"}, 
+    {"get_server_info", m_get_server_info, METH_NOARGS, "Get server info"},
     {"get_cards", m_get_cards, METH_NOARGS, "Get card list"}, 
     {"get_devices", m_get_devices, METH_NOARGS, "Get device list"}, 
 
@@ -173,6 +186,9 @@ static PyMethodDef deepin_pulseaudio_object_methods[] =
     {"get_output_volume_by_index", m_get_output_volume_by_index, METH_VARARGS, "Get output volume"}, 
     {"get_input_volume", m_get_input_volume, METH_VARARGS, "Get input volume"},  
     {"get_input_volume_by_index", m_get_input_volume_by_index, METH_VARARGS, "Get input volume"},  
+    
+    {"get_fallback_sink", m_get_fallback_sink, METH_NOARGS, "Get fallback sink"},
+    {"get_fallback_source", m_get_fallback_source, METH_NOARGS, "Get fallback source"},
 
     {"set_output_active_port", m_set_output_active_port, METH_VARARGS, "Set output active port"}, 
     {"set_input_active_port", m_set_input_active_port, METH_VARARGS, "Set input active port"}, 
@@ -184,6 +200,9 @@ static PyMethodDef deepin_pulseaudio_object_methods[] =
     {"set_output_volume_with_balance", m_set_output_volume_with_balance, METH_VARARGS, "Set output volume"}, 
     {"set_input_volume", m_set_input_volume, METH_VARARGS, "Set input volume"}, 
     {"set_input_volume_with_balance", m_set_input_volume_with_balance, METH_VARARGS, "Set input volume"}, 
+    
+    {"set_fallback_sink", m_set_fallback_sink, METH_VARARGS, "Set fallback sink"},
+    {"set_fallback_source", m_set_fallback_source, METH_VARARGS, "Set fallback source"},
     {NULL, NULL, 0, NULL}
 };
 
@@ -331,6 +350,7 @@ static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object()
     self->state = 0;
     self->sink_changed_cb = NULL;
     self->source_changed_cb = NULL;
+    self->server_info = NULL;
     self->card_changed_cb = NULL;
     self->card_devices = NULL;
     self->input_devices = NULL;
@@ -398,19 +418,74 @@ static void m_pa_context_subscribe_cb(pa_context *c,
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
         
     switch (t & PA_SUBSCRIPTION_EVENT_FACILITY_MASK) {                          
-        case PA_SUBSCRIPTION_EVENT_SINK:                                        
-            if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
+        case PA_SUBSCRIPTION_EVENT_SINK:
+            if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_NEW) {
+                printf("DEBUG sink %d new\n", idx);
+            } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
+                pa_context_get_sink_info_by_index(c, idx, m_pa_sink_info_cb, NULL);
+            } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
                 printf("DEBUG sink %d removed\n", idx);
-            } else {
-                pa_context_get_sink_info_by_index(c, idx, m_pa_sink_info_cb, self);
-            }                                                                   
-            break;                                                              
+                PyObject *key = NULL;
+                key = INT(idx);
+                if (self->output_active_ports && PyDict_Contains(self->output_active_ports, key)) {
+                    PyDict_DelItem(self->output_active_ports, key);
+                }
+                if (self->output_channels && PyDict_Contains(self->output_channels, key)) {
+                    PyDict_DelItem(self->output_channels, key);
+                }
+                if (self->output_devices && PyDict_Contains(self->output_devices, key)) {
+                    PyDict_DelItem(self->output_devices, key);
+                }
+                if (self->output_mute && PyDict_Contains(self->output_mute, key)) {
+                    PyDict_DelItem(self->output_mute, key);
+                }
+                if (self->output_ports && PyDict_Contains(self->output_ports, key)) {
+                    PyDict_DelItem(self->output_ports, key);
+                }
+                if (self->output_volume && PyDict_Contains(self->output_volume, key)) {
+                    PyDict_DelItem(self->output_volume, key);
+                }
+            }
+            break;
+        case PA_SUBSCRIPTION_EVENT_SOURCE:
+            if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_NEW) {
+                printf("DEBUG source %d new\n", idx);
+            } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
+                //pa_context_get_sink_info_by_index(c, idx, m_pa_sink_info_cb, NULL);
+            } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
+                printf("DEBUG source %d removed\n", idx);
+                PyObject *key = NULL;
+                key = INT(idx);
+                if (self->input_active_ports && PyDict_Contains(self->input_active_ports, key)) {
+                    PyDict_DelItem(self->input_active_ports, key);
+                }
+                if (self->input_channels && PyDict_Contains(self->input_channels, key)) {
+                    PyDict_DelItem(self->input_channels, key);
+                }
+                if (self->input_devices && PyDict_Contains(self->input_devices, key)) {
+                    PyDict_DelItem(self->input_devices, key);
+                }
+                if (self->input_mute && PyDict_Contains(self->input_mute, key)) {
+                    PyDict_DelItem(self->input_mute, key);
+                }
+                if (self->input_ports && PyDict_Contains(self->input_ports, key)) {
+                    PyDict_DelItem(self->input_ports, key);
+                }
+                if (self->input_volume && PyDict_Contains(self->input_volume, key)) {
+                    PyDict_DelItem(self->input_volume, key);
+                }
+            }
+            break;
         case PA_SUBSCRIPTION_EVENT_CLIENT:                                      
             if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
             } else {                                                            
                 pa_context_get_client_info(c, idx, m_pa_client_info_cb, NULL);  
             }                                                                   
             break;                                                              
+        case PA_SUBSCRIPTION_EVENT_SERVER:
+            break;
+        case PA_SUBSCRIPTION_EVENT_CARD:
+            break;
     }
 }
 
@@ -523,6 +598,13 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
     if (!self)
         return NULL;
 
+    self->server_info = PyDict_New();
+    if (!self->server_info) {
+        ERROR("PyDict_New error");
+        m_delete(self);
+        return NULL;
+    }
+
     self->card_devices = PyDict_New();
     if (!self->card_devices) {
         ERROR("PyDict_New error");
@@ -579,12 +661,24 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
         return NULL;
     }
 
+    self->input_ports = PyDict_New();
+    if (!self->input_ports) {
+        printf("PyDict_New error");
+        return;
+    }
+
     self->output_mute = PyDict_New();                                            
     if (!self->output_mute) {                                                    
         ERROR("PyDict_New error");                                              
         m_delete(self);                                                         
         return NULL;                                                            
     } 
+
+    self->output_ports = PyDict_New();
+    if (!self->output_ports) {
+        printf("PyDict_New error");
+        return;
+    }
 
     self->output_volume = PyDict_New();
     if (!self->output_volume) {
@@ -665,6 +759,17 @@ static PyObject *m_connect(DeepinPulseAudioObject *self, PyObject *args)
     return Py_True;                                                             
 }
 
+static PyObject *m_get_server_info(DeepinPulseAudioObject *self)
+{
+    if (self->server_info) {
+        Py_INCREF(self->server_info);
+        return self->server_info;
+    } else {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+}
+
 static PyObject *m_get_cards(DeepinPulseAudioObject *self) 
 {
     if (self->card_devices) {
@@ -690,6 +795,7 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
     int state = 0;                                                              
     int pa_ready = 0;                                                           
 
+    PyDict_Clear(self->server_info);
     PyDict_Clear(self->card_devices);
     PyDict_Clear(self->output_devices);
     PyDict_Clear(self->input_devices);
@@ -777,6 +883,15 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
                 }
                 break;
             case 3:
+                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
+                    pa_operation_unref(pa_op);
+                    // Now to get the server info
+                    pa_op = pa_context_get_server_info(pa_ctx,
+                            m_pa_server_info_cb, self);
+                    state++;
+                }
+                break;
+            case 4:
                 if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {       
                     // Now we're done, clean up and disconnect and return       
                     pa_operation_unref(pa_op);                                  
@@ -1036,6 +1151,26 @@ static PyObject *m_get_input_volume_by_index(DeepinPulseAudioObject *self, PyObj
         return self->input_volume;                                             
     }
 }                                                                                        
+
+static PyObject *m_get_fallback_sink(DeepinPulseAudioObject *self)
+{
+    if (self->server_info && PyDict_Contains(self->server_info, STRING("fallback_sink"))) {
+        return PyDict_GetItemString(self->server_info, "fallback_sink");
+    } else {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+}
+
+static PyObject *m_get_fallback_source(DeepinPulseAudioObject *self)
+{
+    if (self->server_info && PyDict_Contains(self->server_info, STRING("fallback_source"))) {
+        return PyDict_GetItemString(self->server_info, "fallback_source");
+    } else {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+}
 
 // set function
 static PyObject *m_set_output_active_port(DeepinPulseAudioObject *self, 
@@ -1709,6 +1844,126 @@ static PyObject *m_set_input_volume_with_balance(DeepinPulseAudioObject *self,
     return Py_True;
 }
 
+static PyObject *m_set_fallback_sink(DeepinPulseAudioObject *self,
+                                     PyObject *args)
+{
+    pa_mainloop *pa_ml = NULL;
+    pa_mainloop_api *pa_mlapi = NULL;
+    pa_context *pa_ctx = NULL;
+    pa_operation *pa_op = NULL;
+    char *name = NULL;
+    int pa_ready = 0;
+    int state = 0;
+
+    if (!PyArg_ParseTuple(args, "s", &name)) {
+        ERROR("invalid arguments to set_fallback_sink");
+        return NULL;
+    }
+
+    pa_ml = pa_mainloop_new();
+    pa_mlapi = pa_mainloop_get_api(pa_ml);
+    pa_ctx = pa_context_new(pa_mlapi, PACKAGE);
+
+    pa_context_connect(pa_ctx, NULL, 0, NULL);
+    pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);
+
+    for (;;) {
+        if (pa_ready == 0) {
+            pa_mainloop_iterate(pa_ml, 1, NULL);
+            continue;
+        }
+        if (pa_ready == 2) {
+            pa_context_disconnect(pa_ctx);
+            pa_context_unref(pa_ctx);
+            pa_mainloop_free(pa_ml);
+            Py_INCREF(Py_False);
+            return Py_False;
+        }
+        switch (state) {
+            case 0:
+                pa_op = pa_context_set_default_sink(pa_ctx, name, NULL, NULL);
+                state++;
+                break;
+            case 1:
+                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
+                    pa_operation_unref(pa_op);
+                    pa_context_disconnect(pa_ctx);
+                    pa_context_unref(pa_ctx);
+                    pa_mainloop_free(pa_ml);
+                    Py_INCREF(Py_True);
+                    return Py_True;
+                }
+                break;
+            default:
+                Py_INCREF(Py_False);
+                return Py_False;
+        }
+        pa_mainloop_iterate(pa_ml, 1, NULL);
+    }
+    Py_INCREF(Py_True);
+    return Py_True;
+}
+
+static PyObject *m_set_fallback_source(DeepinPulseAudioObject *self,
+                                       PyObject *args)
+{
+    pa_mainloop *pa_ml = NULL;
+    pa_mainloop_api *pa_mlapi = NULL;
+    pa_context *pa_ctx = NULL;
+    pa_operation *pa_op = NULL;
+    char *name = NULL;
+    int pa_ready = 0;
+    int state = 0;
+
+    if (!PyArg_ParseTuple(args, "s", &name)) {
+        ERROR("invalid arguments to set_fallback_source");
+        return NULL;
+    }
+
+    pa_ml = pa_mainloop_new();
+    pa_mlapi = pa_mainloop_get_api(pa_ml);
+    pa_ctx = pa_context_new(pa_mlapi, PACKAGE);
+
+    pa_context_connect(pa_ctx, NULL, 0, NULL);
+    pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);
+
+    for (;;) {
+        if (pa_ready == 0) {
+            pa_mainloop_iterate(pa_ml, 1, NULL);
+            continue;
+        }
+        if (pa_ready == 2) {
+            pa_context_disconnect(pa_ctx);
+            pa_context_unref(pa_ctx);
+            pa_mainloop_free(pa_ml);
+            Py_INCREF(Py_False);
+            return Py_False;
+        }
+        switch (state) {
+            case 0:
+                pa_op = pa_context_set_default_source(pa_ctx, name, NULL, NULL);
+                state++;
+                break;
+            case 1:
+                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
+                    pa_operation_unref(pa_op);
+                    pa_context_disconnect(pa_ctx);
+                    pa_context_unref(pa_ctx);
+                    pa_mainloop_free(pa_ml);
+                    Py_INCREF(Py_True);
+                    return Py_True;
+                }
+                break;
+            default:
+                Py_INCREF(Py_False);
+                return Py_False;
+        }
+        pa_mainloop_iterate(pa_ml, 1, NULL);
+        return Py_True;
+    }
+
+}
+
 // This callback gets called when our context changes state.  We really only    
 // care about when it's ready or if it has failed                               
 static void m_pa_state_cb(pa_context *c, void *userdata) {                               
@@ -1734,6 +1989,34 @@ static void m_pa_state_cb(pa_context *c, void *userdata) {
             break;                                                  
     }
     pthread_mutex_unlock(&m_mutex);
+}
+
+
+static void m_pa_server_info_cb(pa_context *c, const pa_server_info *i, void *userdate)
+{
+    DeepinPulseAudioObject *self = userdate;
+    PyDict_SetItemString(self->server_info,
+                         "user_name",
+                         STRING(i->user_name));
+    PyDict_SetItemString(self->server_info,
+                         "host_name",
+                         STRING(i->host_name));
+    PyDict_SetItemString(self->server_info,
+                         "server_version",
+                         STRING(i->server_version));
+    PyDict_SetItemString(self->server_info,
+                         "server_name",
+                         STRING(i->server_name));
+
+    PyDict_SetItemString(self->server_info,
+                         "fallback_sink",
+                         STRING(i->default_sink_name));
+    PyDict_SetItemString(self->server_info,
+                         "fallback_source",
+                         STRING(i->default_source_name));
+    PyDict_SetItemString(self->server_info,
+                         "cookie",
+                         INT(i->cookie));
 }
 
 static void m_pa_cardlist_cb(pa_context *c,
@@ -1873,7 +2156,6 @@ static void m_pa_sinklist_cb(pa_context *c,
     PyObject *key = NULL;
     PyObject *channel_value = NULL;
     PyObject *active_port_value = NULL;
-    PyObject *mute_value = NULL;
     PyObject *volume_value = NULL;
     PyObject *prop_dict = NULL;
     PyObject *port_list = NULL;
@@ -1886,11 +2168,6 @@ static void m_pa_sinklist_cb(pa_context *c,
         return;                                                                 
     }
 
-    self->output_ports = PyDict_New();
-    if (!self->output_ports) {
-        printf("PyDict_New error");
-        return;
-    }
     channel_value = PyList_New(0);
     if (!channel_value) {
         printf("PyList_New error");
@@ -1984,7 +2261,6 @@ static void m_pa_sourcelist_cb(pa_context *c,
     PyObject *key = NULL;
     PyObject *channel_value = NULL;
     PyObject *active_port_value = NULL;
-    PyObject *mute_value = NULL;
     PyObject *volume_value = NULL;
     PyObject *prop_dict = NULL;
     PyObject *port_list = NULL;
@@ -1996,11 +2272,6 @@ static void m_pa_sourcelist_cb(pa_context *c,
         return;                                                                 
     }
 
-    self->input_ports = PyDict_New();
-    if (!self->input_ports) {
-        printf("PyDict_New error");
-        return;
-    }
     channel_value = PyList_New(0);
     if (!channel_value) {
         printf("PyList_New error");
