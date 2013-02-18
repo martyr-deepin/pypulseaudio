@@ -474,7 +474,7 @@ static void m_pa_sink_input_event_cb(pa_context *c,
                                      int eol,
                                      void *userdata)
 {
-    if (eol > 0) {
+    if (eol > 0 || !info) {
         return;
     }
     PyObject *self = NULL;
@@ -2801,7 +2801,7 @@ static void m_pa_sinkinputlist_info_cb(pa_context *c,
                                        int eol,
                                        void *userdata)
 {
-    if (eol > 0) {
+    if (eol > 0 || !l) {
         return;
     }
     DeepinPulseAudioObject *self = userdata;
