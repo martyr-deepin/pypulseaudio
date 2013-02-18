@@ -78,7 +78,7 @@ typedef struct {
     PyObject *input_volume;
     PyObject *output_volume;
     PyObject *playback_streams;
-    PyObject *record_strams;
+    PyObject *record_stream;
 } DeepinPulseAudioObject;
 
 /* TODO: pthread mutex to lock pa_context_get_state, because pa_context_get_XXX 
@@ -415,54 +415,9 @@ static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object()
     self->input_volume = NULL;
     self->output_volume = NULL;
     self->playback_streams = NULL;
-    self->record_strams = NULL;
+    self->record_stream = NULL;
 
     return self;
-}
-
-static void m_pa_client_info_cb(pa_context *c,                                  
-                                const pa_client_info *info,                        
-                                int eol,                                        
-                                void *userdata)                                 
-{                                 
-    if (!info) 
-        return;
-
-    printf("DEBUG client info %s\n", info ? info->name : NULL);                                   
-}
-
-static void m_pa_sink_info_cb(pa_context *c, 
-                              const pa_sink_info *info, 
-                              int eol, 
-                              void *userdata) 
-{
-    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
-    PyObject *volumes = NULL;
-    int i = 0;
-    PyGILState_STATE gstate;
-
-    if (!info) 
-        return;
-
-    /* TODO: thread lock */
-    gstate = PyGILState_Ensure();
-
-    if (self->sink_changed_cb) {
-        volumes = PyTuple_New(info->volume.channels);
-        for (i = 0; i < info->volume.channels; i++) 
-            PyTuple_SetItem(volumes, i, INT(info->volume.values[i]));
-        PyEval_CallFunction(self->sink_changed_cb, 
-            "(snOns)", 
-            info->name, 
-            INT(info->index), 
-            volumes, 
-            INT(info->mute), 
-            info->active_port->name);
-    }
-    
-    /* FIXME: why can not unlock ?! 
-    PyGILState_Release(gstate);
-    */
 }
 
 static void m_pa_sink_event_cb(pa_context *c,
@@ -470,6 +425,9 @@ static void m_pa_sink_event_cb(pa_context *c,
                                int eol,
                                void *userdata)
 {
+    if (eol > 0) {
+        return;
+    }
     PyObject *self = NULL;
     PyObject *callback = NULL;
     if (!PyArg_ParseTuple(userdata, "OO", &self, &callback)) {
@@ -481,15 +439,21 @@ static void m_pa_sink_event_cb(pa_context *c,
     PyGILState_STATE gstate;
     if (callback) {
         gstate = PyGILState_Ensure();
-        PyEval_CallFunction(callback, "(i)", info->index);
+        PyEval_CallFunction(callback, "(Oi)", self, info->index);
+        /* FIXME: why can not unlock ?! 
+        PyGILState_Release(gstate);
+        */
     }
 }
 
 static void m_pa_source_event_cb(pa_context *c,
-                               const pa_source_info *info,
-                               int eol,
-                               void *userdata)
+                                 const pa_source_info *info,
+                                 int eol,
+                                 void *userdata)
 {
+    if (eol > 0) {
+        return;
+    }
     PyObject *self = NULL;
     PyObject *callback = NULL;
     if (!PyArg_ParseTuple(userdata, "OO", &self, &callback)) {
@@ -501,7 +465,72 @@ static void m_pa_source_event_cb(pa_context *c,
     PyGILState_STATE gstate;
     if (callback) {
         gstate = PyGILState_Ensure();
-        PyEval_CallFunction(callback, "(i)", info->index);
+        PyEval_CallFunction(callback, "(Oi)", self, info->index);
+    }
+}
+
+static void m_pa_sink_input_event_cb(pa_context *c,
+                                     const pa_sink_input_info *info,
+                                     int eol,
+                                     void *userdata)
+{
+    if (eol > 0) {
+        return;
+    }
+    PyObject *self = NULL;
+    PyObject *callback = NULL;
+    if (!PyArg_ParseTuple(userdata, "OO", &self, &callback)) {
+        ERROR("invalid arguments to set_fallback_source");
+        return;
+    }
+    m_pa_sinkinputlist_info_cb(c, info, eol, self);
+    PyGILState_STATE gstate;
+    if (callback) {
+        gstate = PyGILState_Ensure();
+        PyEval_CallFunction(callback, "(Oi)", self, info->index);
+    }
+}
+
+static void m_pa_source_output_event_cb(pa_context *c,
+                                        const pa_source_output_info *info,
+                                        int eol,
+                                        void *userdata)
+{
+    if (eol > 0) {
+        return;
+    }
+    PyObject *self = NULL;
+    PyObject *callback = NULL;
+    if (!PyArg_ParseTuple(userdata, "OO", &self, &callback)) {
+        ERROR("invalid arguments to set_fallback_source");
+        return;
+    }
+    m_pa_sourceoutputlist_info_cb(c, info, eol, self);
+    PyGILState_STATE gstate;
+    if (callback) {
+        gstate = PyGILState_Ensure();
+        PyEval_CallFunction(callback, "(Oi)", self, info->index);
+    }
+}
+
+static void m_pa_server_event_cb(pa_context *c,
+                                 const pa_server_info *info,
+                                 void *userdata)
+{
+    if (!info) {
+        return;
+    }
+    PyObject *self = NULL;
+    PyObject *callback = NULL;
+    if (!PyArg_ParseTuple(userdata, "OO", &self, &callback)) {
+        ERROR("invalid arguments to set_fallback_source");
+        return;
+    }
+    m_pa_server_info_cb(c, info, self);
+    PyGILState_STATE gstate;
+    if (callback) {
+        gstate = PyGILState_Ensure();
+        PyEval_CallFunction(callback, "(O)", self);
     }
 }
 
@@ -510,6 +539,9 @@ static void m_pa_card_event_cb(pa_context *c,
                                int eol,
                                void *userdata)
 {
+    if (eol > 0) {
+        return;
+    }
     PyObject *self = NULL;
     PyObject *callback = NULL;
     if (!PyArg_ParseTuple(userdata, "OO", &self, &callback)) {
@@ -521,7 +553,7 @@ static void m_pa_card_event_cb(pa_context *c,
     PyGILState_STATE gstate;
     if (callback) {
         gstate = PyGILState_Ensure();
-        PyEval_CallFunction(callback, "(i)", info->index);
+        PyEval_CallFunction(callback, "(Oi)", self, info->index);
     }
 }
 
@@ -533,7 +565,7 @@ static void m_pa_removed_event_cb(pa_context *c,
     PyGILState_STATE gstate;
     if (callback) {
         gstate = PyGILState_Ensure();
-        PyEval_CallFunction(callback, "(i)", idx);
+        PyEval_CallFunction(callback, "(Oi)", self, idx);
     }
 }
 
@@ -600,7 +632,6 @@ static void m_pa_context_subscribe_cb(pa_context *c,
                     pa_context_get_source_info_by_index(c, idx, m_pa_source_event_cb, self);
                 }
             } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
-                //pa_context_get_sink_info_by_index(c, idx, m_pa_sink_info_cb, NULL);
                 if (self->source_changed_cb) {
                     pa_context_get_source_info_by_index(c, idx, m_pa_source_event_cb,
                                                       Py_BuildValue("(OO)", (PyObject *)self,
@@ -635,39 +666,88 @@ static void m_pa_context_subscribe_cb(pa_context *c,
             }
             break;
         case PA_SUBSCRIPTION_EVENT_SINK_INPUT:
+            if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_NEW) {
+                printf("DEBUG sink_input %d new\n", idx);
+                if (self->sink_input_new_cb) {
+                    pa_context_get_sink_input_info(c, idx, m_pa_sink_input_event_cb,
+                                                      Py_BuildValue("(OO)", (PyObject *)self,
+                                                                    self->sink_input_new_cb));
+                } else {
+                    pa_context_get_sink_input_info(c, idx, m_pa_sinkinputlist_info_cb, self);
+                }
+            } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
+                if (self->sink_input_changed_cb) {
+                    pa_context_get_sink_input_info(c, idx, m_pa_sink_input_event_cb,
+                                                      Py_BuildValue("(OO)", (PyObject *)self,
+                                                                    self->sink_input_changed_cb));
+                } else {
+                    pa_context_get_sink_input_info(c, idx, m_pa_sinkinputlist_info_cb, self);
+                }
+            } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
+                printf("DEBUG sink_input %d removed\n", idx);
+                PyObject *key = NULL;
+                key = INT(idx);
+                if (self->playback_streams && PyDict_Contains(self->playback_streams, key)) {
+                    PyDict_DelItem(self->playback_streams, key);
+                }
+                Py_DecRef(key);
+                m_pa_removed_event_cb(c, self->sink_input_removed_cb, idx, self);
+            }
             break;
         case PA_SUBSCRIPTION_EVENT_SOURCE_OUTPUT:
+            if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_NEW) {
+                printf("DEBUG source_output %d new\n", idx);
+                if (self->source_output_new_cb) {
+                    pa_context_get_source_output_info(c, idx, m_pa_source_output_event_cb,
+                                                      Py_BuildValue("(OO)", (PyObject *)self,
+                                                                    self->source_output_new_cb));
+                } else {
+                    pa_context_get_source_output_info(c, idx, m_pa_sourceoutputlist_info_cb, self);
+                }
+            } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
+                if (self->source_output_changed_cb) {
+                    pa_context_get_source_output_info(c, idx, m_pa_source_output_event_cb,
+                                                      Py_BuildValue("(OO)", (PyObject *)self,
+                                                                    self->source_output_changed_cb));
+                } else {
+                    pa_context_get_source_output_info(c, idx, m_pa_sourceoutputlist_info_cb, self);
+                }
+            } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
+                printf("DEBUG sink_input %d removed\n", idx);
+                PyObject *key = NULL;
+                key = INT(idx);
+                if (self->record_stream && PyDict_Contains(self->record_stream, key)) {
+                    PyDict_DelItem(self->record_stream, key);
+                }
+                Py_DecRef(key);
+                m_pa_removed_event_cb(c, self->source_output_removed_cb, idx, self);
+            }
             break;
         case PA_SUBSCRIPTION_EVENT_CLIENT:                                      
             break;                                                              
         case PA_SUBSCRIPTION_EVENT_SERVER:
-            /*if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_NEW) {*/
-                /*printf("DEBUG server %d new\n", idx);*/
-                /*if (self->card_new_cb) {*/
-                    /*pa_context_get_card_info_by_index(c, idx, m_pa_card_event_cb,*/
-                                                      /*Py_BuildValue("(OO)", (PyObject *)self,*/
-                                                                    /*self->card_new_cb));*/
-                /*} else {*/
-                    /*pa_context_get_card_info_by_index(c, idx, m_pa_card_event_cb, self);*/
-                /*}*/
-            /*} else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {*/
-                /*if (self->card_new_cb) {*/
-                    /*pa_context_get_card_info_by_index(c, idx, m_pa_card_event_cb,*/
-                                                      /*Py_BuildValue("(OO)", (PyObject *)self,*/
-                                                                    /*self->card_new_cb));*/
-                /*} else {*/
-                    /*pa_context_get_card_info_by_index(c, idx, m_pa_card_event_cb, self);*/
-                /*}*/
-            /*} else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {*/
-                /*printf("DEBUG card %d removed\n", idx);*/
-                /*PyObject *key = NULL;*/
-                /*key = INT(idx);*/
-                /*if (self->card_devices && PyDict_Contains(self->card_devices, key)) {*/
-                    /*PyDict_DelItem(self->card_devices, key);*/
-                /*}*/
-                /*Py_DecRef(key);*/
-                /*m_pa_removed_event_cb(c, self->source_removed_cb, idx, self);*/
-            /*}*/
+            if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_NEW) {
+                printf("DEBUG server %d new\n", idx);
+                if (self->server_new_cb) {
+                    pa_context_get_server_info(c, m_pa_server_event_cb,
+                                               Py_BuildValue("(OO)", (PyObject *)self,
+                                                             self->server_new_cb));
+                } else {
+                    pa_context_get_server_info(c, m_pa_server_info_cb, self);
+                }
+            } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
+                printf("DEBUG server %d changed\n", idx);
+                if (self->server_changed_cb) {
+                    pa_context_get_server_info(c, m_pa_server_event_cb,
+                                               Py_BuildValue("(OO)", (PyObject *)self,
+                                                             self->server_changed_cb));
+                } else {
+                    pa_context_get_server_info(c, m_pa_server_info_cb, self);
+                }
+            } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
+                printf("DEBUG server %d removed\n", idx);
+                //m_pa_removed_event_cb(c, self->server_removed_cb, idx, self);
+            }
             break;
         case PA_SUBSCRIPTION_EVENT_CARD:
             if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_NEW) {
@@ -806,6 +886,9 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
 {
     DeepinPulseAudioObject *self = NULL;
 
+    /*Py_Initialize();*/
+    /*PyEval_InitThreads();*/
+    /*PyEval_ReleaseLock();*/
     self = m_init_deepin_pulseaudio_object();
     if (!self)
         return NULL;
@@ -913,8 +996,8 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
         return NULL;
     }
 
-    self->record_strams = PyDict_New();
-    if (!self->record_strams) {
+    self->record_stream = PyDict_New();
+    if (!self->record_stream) {
         ERROR("PyDict_New error");
         m_delete(self);
         return NULL;
@@ -1128,7 +1211,7 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
     PyDict_Clear(self->input_volume);
     PyDict_Clear(self->output_volume);
     PyDict_Clear(self->playback_streams);
-    PyDict_Clear(self->record_strams);
+    PyDict_Clear(self->record_stream);
 
     // Create a mainloop API and connection to the default server               
     pa_ml = pa_mainloop_new();                                                  
@@ -1292,9 +1375,9 @@ static PyObject *m_get_playback_streams(DeepinPulseAudioObject *self)
 
 static PyObject *m_get_record_streams(DeepinPulseAudioObject *self)
 {
-    if (self->record_strams) {
-        Py_INCREF(self->record_strams);
-        return self->record_strams;
+    if (self->record_stream) {
+        Py_INCREF(self->record_stream);
+        return self->record_stream;
     } else {
         Py_INCREF(Py_None);
         return Py_None;
@@ -2714,9 +2797,9 @@ static void m_pa_sourcelist_cb(pa_context *c,
 }                   
 
 static void m_pa_sinkinputlist_info_cb(pa_context *c,
-                                  const pa_sink_input_info *l,
-                                  int eol,
-                                  void *userdata)
+                                       const pa_sink_input_info *l,
+                                       int eol,
+                                       void *userdata)
 {
     if (eol > 0) {
         return;
@@ -2780,9 +2863,9 @@ static void m_pa_sinkinputlist_info_cb(pa_context *c,
 }
 
 static void m_pa_sourceoutputlist_info_cb(pa_context *c,
-                                     const pa_source_output_info *l,
-                                     int eol,
-                                     void *userdata)
+                                          const pa_source_output_info *l,
+                                          int eol,
+                                          void *userdata)
 {
     if (eol > 0) {
         return;
@@ -2826,7 +2909,7 @@ static void m_pa_sourceoutputlist_info_cb(pa_context *c,
     for (i = 0; i < l->volume.channels; i++) {
         PyList_Append(volume_value, INT(l->volume.values[i]));
     }
-    PyDict_SetItem(self->record_strams, key,
+    PyDict_SetItem(self->record_stream, key,
                    Py_BuildValue("{sssisisisOsssssOsisOsisisi}",
                                  "name", l->name,
                                  "owner_module", l->owner_module,
