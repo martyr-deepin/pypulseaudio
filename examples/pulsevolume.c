@@ -46,6 +46,21 @@ int main(int argc, char **argv)
     channel_map.map[2] = 8;
     channel_map.map[3] = 9;
 
+    printf("PA_CVOLUME_SNPRINT_MAX: %d\n", PA_CVOLUME_SNPRINT_MAX);
+    printf("PA_DECIBEL_MININFTY:%f\n", PA_DECIBEL_MININFTY);
+    printf("PA_SW_CVOLUME_SNPRINT_DB_MAX: %d\n", PA_SW_CVOLUME_SNPRINT_DB_MAX);
+    printf("PA_SW_VOLUME_SNPRINT_DB_MAX: %d\n", PA_SW_VOLUME_SNPRINT_DB_MAX);
+    printf("PA_VOLUME_INVALID: %u\n", PA_VOLUME_INVALID);
+    printf("PA_VOLUME_MAX: %d\n", PA_VOLUME_MAX);
+    printf("PA_VOLUME_MUTED: %d\n", PA_VOLUME_MUTED);
+    printf("PA_VOLUME_NORM: %d\n", PA_VOLUME_NORM);
+    printf("PA_VOLUME_SNPRINT_MAX: %d\n", PA_VOLUME_SNPRINT_MAX);
+    printf("PA_VOLUME_UI_MAX: %d\n", PA_VOLUME_UI_MAX);
+
+    printf("mute dB: %f\n", pa_sw_volume_to_dB(PA_VOLUME_MUTED));
+    printf("normal dB: %f\n", pa_sw_volume_to_dB(PA_VOLUME_NORM));
+    printf("ui_max dB: %f\n", pa_sw_volume_to_dB(PA_VOLUME_UI_MAX));
+
     printf("get_balance:%f\n", pa_cvolume_get_balance(&volume, &channel_map));
     printf("volume = %s\n", pa_cvolume_snprint(buf, sizeof(buf)-1, &volume));
     for (i = 0; i < volume.channels; i++) {

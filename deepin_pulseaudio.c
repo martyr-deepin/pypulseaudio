@@ -96,10 +96,12 @@ static void m_pa_context_subscribe_cb(pa_context *c,
                                       void *userdata);
 static void *m_pa_connect_loop_cb(void *arg);
 static DeepinPulseAudioObject *m_new(PyObject *self, PyObject *args);
+static PyObject *m_pa_volume_get_balance(PyObject *self, PyObject *args);
 
 static PyMethodDef deepin_pulseaudio_methods[] = 
 {
     {"new", m_new, METH_NOARGS, "Deepin PulseAudio Construction"}, 
+    {"volume_get_balance", m_pa_volume_get_balance, METH_VARARGS, "Get volume balance"},
     {NULL, NULL, 0, NULL}
 };
 
@@ -363,7 +365,67 @@ PyMODINIT_FUNC initdeepin_pulseaudio()
     m = Py_InitModule("deepin_pulseaudio", deepin_pulseaudio_methods);
     if (!m)
         return;
-
+    // pulseaudio module constants
+    if (PyModule_AddObject(m, "CVOLUME_SNPRINT_MAX",
+                           PyLong_FromLong(PA_CVOLUME_SNPRINT_MAX)) < 0) {
+        return;
+    }
+    if (PyModule_AddObject(m, "DECIBEL_MININFTY",
+                           PyFloat_FromDouble(PA_DECIBEL_MININFTY)) < 0) {
+        return;
+    }
+    if (PyModule_AddObject(m, "SW_CVOLUME_SNPRINT_DB_MAX",
+                           PyLong_FromLong(PA_SW_CVOLUME_SNPRINT_DB_MAX)) < 0) {
+        return;
+    }
+    if (PyModule_AddObject(m, "SW_VOLUME_SNPRINT_DB_MAX",
+                           PyLong_FromLong(PA_SW_VOLUME_SNPRINT_DB_MAX)) < 0) {
+        return;
+    }
+    if (PyModule_AddObject(m, "VOLUME_INVALID",
+                           PyLong_FromUnsignedLong(PA_VOLUME_INVALID)) < 0) {
+        return;
+    }
+    if (PyModule_AddObject(m, "VOLUME_MAX",
+                           PyLong_FromUnsignedLong(PA_VOLUME_MAX)) < 0) {
+        return;
+    }
+    if (PyModule_AddObject(m, "VOLUME_MUTED",
+                           PyLong_FromUnsignedLong(PA_VOLUME_MUTED)) < 0) {
+        return;
+    }
+    if (PyModule_AddObject(m, "VOLUME_NORM",
+                           PyLong_FromUnsignedLong(PA_VOLUME_NORM)) < 0) {
+        return;
+    }
+    if (PyModule_AddObject(m, "VOLUME_SNPRINT_MAX",
+                           PyLong_FromLong(PA_VOLUME_SNPRINT_MAX)) < 0) {
+        return;
+    }
+    if (PyModule_AddObject(m, "VOLUME_UI_MAX",
+                           PyLong_FromLong(PA_VOLUME_UI_MAX)) < 0) {
+        return;
+    }
+    if (PyModule_AddObject(m, "API_VERSION",
+                           PyLong_FromLong(PA_API_VERSION)) < 0) {
+        return;
+    }
+    if (PyModule_AddObject(m, "MAJOR",
+                           PyLong_FromLong(PA_MAJOR)) < 0) {
+        return;
+    }
+    if (PyModule_AddObject(m, "MICRO",
+                           PyLong_FromLong(PA_MICRO)) < 0) {
+        return;
+    }
+    if (PyModule_AddObject(m, "MINOR",
+                           PyLong_FromLong(PA_MINOR)) < 0) {
+        return;
+    }
+    if (PyModule_AddObject(m, "PROTOCOL_VERSION",
+                           PyLong_FromLong(PA_PROTOCOL_VERSION)) < 0) {
+        return;
+    }
     m_deepin_pulseaudio_object_constants = PyDict_New();
 }
 
@@ -425,7 +487,7 @@ static void m_pa_sink_event_cb(pa_context *c,
                                int eol,
                                void *userdata)
 {
-    if (eol > 0) {
+    if (eol > 0 || !info) {
         return;
     }
     PyObject *self = NULL;
@@ -451,7 +513,7 @@ static void m_pa_source_event_cb(pa_context *c,
                                  int eol,
                                  void *userdata)
 {
-    if (eol > 0) {
+    if (eol > 0 || !info) {
         return;
     }
     PyObject *self = NULL;
@@ -496,7 +558,7 @@ static void m_pa_source_output_event_cb(pa_context *c,
                                         int eol,
                                         void *userdata)
 {
-    if (eol > 0) {
+    if (eol > 0 || !info) {
         return;
     }
     PyObject *self = NULL;
@@ -539,7 +601,7 @@ static void m_pa_card_event_cb(pa_context *c,
                                int eol,
                                void *userdata)
 {
-    if (eol > 0) {
+    if (eol > 0 || !info) {
         return;
     }
     PyObject *self = NULL;
@@ -588,6 +650,7 @@ static void m_pa_context_subscribe_cb(pa_context *c,
                     pa_context_get_sink_info_by_index(c, idx, m_pa_sinklist_cb, self);
                 }
             } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
+                printf("DEBUG sink %d changed\n", idx);
                 if (self->sink_changed_cb) {
                     pa_context_get_sink_info_by_index(c, idx, m_pa_sink_event_cb,
                                                       Py_BuildValue("(OO)", (PyObject *)self,
@@ -632,6 +695,7 @@ static void m_pa_context_subscribe_cb(pa_context *c,
                     pa_context_get_source_info_by_index(c, idx, m_pa_source_event_cb, self);
                 }
             } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
+                printf("DEBUG source %d changed\n", idx);
                 if (self->source_changed_cb) {
                     pa_context_get_source_info_by_index(c, idx, m_pa_source_event_cb,
                                                       Py_BuildValue("(OO)", (PyObject *)self,
@@ -676,6 +740,7 @@ static void m_pa_context_subscribe_cb(pa_context *c,
                     pa_context_get_sink_input_info(c, idx, m_pa_sinkinputlist_info_cb, self);
                 }
             } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
+                printf("DEBUG sink_input %d changed\n", idx);
                 if (self->sink_input_changed_cb) {
                     pa_context_get_sink_input_info(c, idx, m_pa_sink_input_event_cb,
                                                       Py_BuildValue("(OO)", (PyObject *)self,
@@ -705,6 +770,7 @@ static void m_pa_context_subscribe_cb(pa_context *c,
                     pa_context_get_source_output_info(c, idx, m_pa_sourceoutputlist_info_cb, self);
                 }
             } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
+                printf("DEBUG source_output %d changed\n", idx);
                 if (self->source_output_changed_cb) {
                     pa_context_get_source_output_info(c, idx, m_pa_source_output_event_cb,
                                                       Py_BuildValue("(OO)", (PyObject *)self,
@@ -746,7 +812,7 @@ static void m_pa_context_subscribe_cb(pa_context *c,
                 }
             } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
                 printf("DEBUG server %d removed\n", idx);
-                //m_pa_removed_event_cb(c, self->server_removed_cb, idx, self);
+                m_pa_removed_event_cb(c, self->server_removed_cb, idx, self);
             }
             break;
         case PA_SUBSCRIPTION_EVENT_CARD:
@@ -760,10 +826,11 @@ static void m_pa_context_subscribe_cb(pa_context *c,
                     pa_context_get_card_info_by_index(c, idx, m_pa_card_event_cb, self);
                 }
             } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
-                if (self->card_new_cb) {
+                printf("DEBUG card %d changed\n", idx);
+                if (self->card_changed_cb) {
                     pa_context_get_card_info_by_index(c, idx, m_pa_card_event_cb,
                                                       Py_BuildValue("(OO)", (PyObject *)self,
-                                                                    self->card_new_cb));
+                                                                    self->card_changed_cb));
                 } else {
                     pa_context_get_card_info_by_index(c, idx, m_pa_card_event_cb, self);
                 }
@@ -775,7 +842,7 @@ static void m_pa_context_subscribe_cb(pa_context *c,
                     PyDict_DelItem(self->card_devices, key);
                 }
                 Py_DecRef(key);
-                m_pa_removed_event_cb(c, self->source_removed_cb, idx, self);
+                m_pa_removed_event_cb(c, self->card_removed_cb, idx, self);
             }
             break;
     }
@@ -1006,6 +1073,57 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
     pthread_create(&self->thread, NULL, m_pa_connect_loop_cb, self);
 
     return self;
+}
+
+static PyObject *m_pa_volume_get_balance(PyObject *self, PyObject *args)
+{
+    pa_cvolume cvolume;
+    pa_channel_map channel_map;
+    PyObject *volume = NULL;
+    PyObject *channel = NULL;
+    PyObject *balance = NULL;
+    int channel_num = 0;
+    int i;
+    Py_ssize_t size_volume, size_channel;
+
+    if (!PyArg_ParseTuple(args, "iOO", &channel_num, &volume, &channel)) {
+        ERROR("invalid arguments to connect");                                  
+        return NULL;                                                            
+    }
+    if (PyList_Check(volume)) {
+        volume = PyList_AsTuple(volume);
+    }
+    if (!PyTuple_Check(volume)) {
+        Py_RETURN_NONE;
+    }
+
+    if (PyList_Check(channel)) {
+        channel = PyList_AsTuple(channel);
+    }
+    if (!PyTuple_Check(channel)) {
+        Py_RETURN_NONE;
+    }
+
+    memset(&cvolume, 0, sizeof(pa_cvolume));
+    memset(&channel_map, 0, sizeof(pa_channel_map));
+    channel_map.channels = channel_num;
+    cvolume.channels = channel_num;
+
+    size_volume = PyTuple_Size(volume);
+    size_channel = PyTuple_Size(channel);
+    if (channel_num < size_volume) {
+        channel_num = size_volume;
+    }
+    if (channel_num < size_channel) {
+        channel_num = size_channel;
+    }
+    for (i = 0; i < channel_num; i++) {
+        cvolume.values[i] = PyInt_AsUnsignedLongMask(PyTuple_GetItem(volume, i));
+        channel_map.map[i] = PyInt_AsUnsignedLongMask(PyTuple_GetItem(channel, i));
+    }
+    balance = PyFloat_FromDouble(pa_cvolume_get_balance(&cvolume, &channel_map));
+    Py_INCREF(balance);
+    return balance;
 }
 
 /* FIXME: fuzzy ... more object wait for destruction */
@@ -2474,7 +2592,7 @@ static void m_pa_cardlist_cb(pa_context *c,
 {
     DeepinPulseAudioObject *self = userdata;
     // If eol is set to a positive number, you're at the end of the list        
-    if (eol > 0) {
+    if (eol > 0 || !i) {
         return;
     }
     PyObject *card_dict = NULL;         // a dict save the card info
@@ -2612,7 +2730,7 @@ static void m_pa_sinklist_cb(pa_context *c,
     void *prop_state = NULL;
                                                                                 
     // If eol is set to a positive number, you're at the end of the list        
-    if (eol > 0) {                                                              
+    if (eol > 0 || !l) {                                                              
         return;                                                                 
     }
 
@@ -2716,7 +2834,7 @@ static void m_pa_sourcelist_cb(pa_context *c,
     const char *prop_key;
     void *prop_state = NULL;
                                                                                 
-    if (eol > 0) {                                                              
+    if (eol > 0 || !l) {                                                              
         return;                                                                 
     }
 
@@ -2867,7 +2985,7 @@ static void m_pa_sourceoutputlist_info_cb(pa_context *c,
                                           int eol,
                                           void *userdata)
 {
-    if (eol > 0) {
+    if (eol > 0 || !l) {
         return;
     }
     DeepinPulseAudioObject *self = userdata;

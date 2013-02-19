@@ -6,3 +6,7 @@ env.Program('pulsedevicelist.c')
 env.Program('pulseevent.c')
 
 env.Program('pulsecard.c')
+
+env.Program('pulsevolume.c')
+
+env.Program('pulseserverinfo.c')
