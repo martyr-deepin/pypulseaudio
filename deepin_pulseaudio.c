@@ -1070,7 +1070,7 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
         return NULL;
     }
 
-    pthread_create(&self->thread, NULL, m_pa_connect_loop_cb, self);
+    /*pthread_create(&self->thread, NULL, m_pa_connect_loop_cb, self);*/
 
     return self;
 }
@@ -1505,6 +1505,7 @@ static PyObject *m_get_record_streams(DeepinPulseAudioObject *self)
 static PyObject *m_get_output_ports(DeepinPulseAudioObject *self) 
 {
     // TODO output_ports 目前为空
+    Py_INCREF(self->output_ports);
     return self->output_ports;
 }
 
@@ -1528,6 +1529,7 @@ static PyObject *m_get_output_ports_by_index(DeepinPulseAudioObject *self, PyObj
 static PyObject *m_get_input_ports(DeepinPulseAudioObject *self)               
 {
     // TODO input_ports 目前为空
+    Py_INCREF(self->input_ports);
     return self->input_ports;
 }
 
@@ -1550,6 +1552,7 @@ static PyObject *m_get_input_ports_by_index(DeepinPulseAudioObject *self, PyObje
 
 static PyObject *m_get_output_channels(DeepinPulseAudioObject *self)
 {
+    Py_INCREF(self->output_channels);
     return self->output_channels;
 }
 
@@ -1572,6 +1575,7 @@ static PyObject *m_get_output_channels_by_index(DeepinPulseAudioObject *self, Py
 
 static PyObject *m_get_input_channels(DeepinPulseAudioObject *self)
 {
+    Py_INCREF(self->input_channels);
     return self->input_channels;
 }
 
@@ -1594,6 +1598,7 @@ static PyObject *m_get_input_channels_by_index(DeepinPulseAudioObject *self, PyO
 
 static PyObject *m_get_output_active_ports(DeepinPulseAudioObject *self)
 {
+    Py_INCREF(self->output_active_ports);
     return self->output_active_ports;
 }
 
@@ -1616,6 +1621,7 @@ static PyObject *m_get_output_active_ports_by_index(DeepinPulseAudioObject *self
 
 static PyObject *m_get_input_active_ports(DeepinPulseAudioObject *self)
 {
+    Py_INCREF(self->input_active_ports);
     return self->input_active_ports;
 }
 
@@ -1639,6 +1645,7 @@ static PyObject *m_get_input_active_ports_by_index(DeepinPulseAudioObject *self,
 static PyObject *m_get_output_mute(DeepinPulseAudioObject *self)
 {
     // TODO 目前output_mute为空
+    Py_INCREF(self->output_mute);
     return self->output_mute;
 }
 
@@ -1663,6 +1670,7 @@ static PyObject *m_get_output_mute_by_index(DeepinPulseAudioObject *self, PyObje
 static PyObject *m_get_input_mute(DeepinPulseAudioObject *self)
 {
     // TODO 目前input_mute为空
+    Py_INCREF(self->input_mute);
     return self->input_mute;
 }
 
@@ -1686,6 +1694,7 @@ static PyObject *m_get_input_mute_by_index(DeepinPulseAudioObject *self, PyObjec
 
 static PyObject *m_get_output_volume(DeepinPulseAudioObject *self)
 {
+    Py_INCREF(self->output_volume);
     return self->output_volume;
 }
 
@@ -1708,6 +1717,7 @@ static PyObject *m_get_output_volume_by_index(DeepinPulseAudioObject *self, PyOb
 
 static PyObject *m_get_input_volume(DeepinPulseAudioObject *self)
 {
+    Py_INCREF(self->input_volume);
     return self->input_volume;
 }
 
@@ -1723,6 +1733,7 @@ static PyObject *m_get_input_volume_by_index(DeepinPulseAudioObject *self, PyObj
     if (self->input_volume && PyDict_Contains(self->input_volume, INT(device))) {
         return PyDict_GetItem(self->input_volume, INT(device));             
     } else {
+        Py_INCREF(self->input_volume);
         return self->input_volume;                                             
     }
 }                                                                                        
@@ -2705,7 +2716,7 @@ static void m_pa_cardlist_cb(pa_context *c,
 
     key = INT(i->index);
     PyDict_SetItem(self->card_devices, key, card_dict);
-    Py_DecRef(key);
+    /*Py_DecRef(key);*/
 }
 // pa_mainloop will call this function when it's ready to tell us about a sink. 
 // Since we're not threading, there's no need for mutexes on the devicelist     
@@ -2774,7 +2785,7 @@ static void m_pa_sinklist_cb(pa_context *c,
                                  "can_balance", pa_channel_map_can_balance(&l->channel_map),
                                  "channels", l->channel_map.channels,
                                  "map", channel_value));
-    Py_DecRef(channel_value);
+    /*Py_DecRef(channel_value);*/
     // ports list
     ports = l->ports;   
     for (i = 0; i < l->n_ports; i++) {                                  
@@ -2792,7 +2803,7 @@ static void m_pa_sinklist_cb(pa_context *c,
                                           active_port->description, 
                                           active_port->available);
         PyDict_SetItem(self->output_active_ports, key, active_port_value);
-        Py_DecRef(active_port_value);
+        /*Py_DecRef(active_port_value);*/
     } else {
         PyDict_SetItem(self->output_active_ports, key, Py_None);
     }
@@ -2810,8 +2821,8 @@ static void m_pa_sinklist_cb(pa_context *c,
                                  "mute", PyBool_FromLong(l->mute),
                                  "ports", port_list,
                                  "proplist", prop_dict));    
-    Py_DecRef(key);
-    Py_DecRef(volume_value);
+    /*Py_DecRef(key);*/
+    /*Py_DecRef(volume_value);*/
 }                   
 
 // See above.  This callback is pretty much identical to the previous
@@ -2874,7 +2885,7 @@ static void m_pa_sourcelist_cb(pa_context *c,
                                  "can_balance", pa_channel_map_can_balance(&l->channel_map),
                                  "channels", l->channel_map.channels,
                                  "map", channel_value));
-    Py_DecRef(channel_value);   
+    /*Py_DecRef(channel_value);   */
     // ports list
     ports = l->ports;                                                   
     for (i = 0; i < l->n_ports; i++) {                                  
@@ -2892,7 +2903,7 @@ static void m_pa_sourcelist_cb(pa_context *c,
                                           active_port->description,         
                                           active_port->available);               
         PyDict_SetItem(self->input_active_ports, key, active_port_value);
-        Py_DecRef(active_port_value);                                       
+        /*Py_DecRef(active_port_value);                                       */
     } else {
         PyDict_SetItem(self->input_active_ports, key, Py_None);
     }
@@ -2910,8 +2921,8 @@ static void m_pa_sourcelist_cb(pa_context *c,
                                  "mute", PyBool_FromLong(l->mute),
                                  "ports", port_list,
                                  "proplist", prop_dict));    
-    Py_DecRef(key);
-    Py_DecRef(volume_value);
+    /*Py_DecRef(key);*/
+    /*Py_DecRef(volume_value);*/
 }                   
 
 static void m_pa_sinkinputlist_info_cb(pa_context *c,
@@ -2976,8 +2987,8 @@ static void m_pa_sinkinputlist_info_cb(pa_context *c,
                                  "mute", l->mute,
                                  "has_volume", l->has_volume,
                                  "volume_writable", l->volume_writable));
-    Py_DecRef(channel_value);
-    Py_DecRef(volume_value);
+    /*Py_DecRef(channel_value);*/
+    /*Py_DecRef(volume_value);*/
 }
 
 static void m_pa_sourceoutputlist_info_cb(pa_context *c,
@@ -3042,7 +3053,7 @@ static void m_pa_sourceoutputlist_info_cb(pa_context *c,
                                  "mute", l->mute,
                                  "has_volume", l->has_volume,
                                  "volume_writable", l->volume_writable));
-    Py_DecRef(channel_value);
-    Py_DecRef(volume_value);
+    /*Py_DecRef(channel_value);*/
+    /*Py_DecRef(volume_value);*/
 }
 
