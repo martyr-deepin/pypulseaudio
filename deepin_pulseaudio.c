@@ -957,6 +957,7 @@ RE_CONN:
         // Iterate the main loop and go again.  The second argument is whether  
         // or not the iteration should block until something is ready to be        
         // done.  Set it to zero for non-blocking.                              
+        // TODO: it might need to use pa_threaded_mainloop to monitor event
         pthread_mutex_lock(&m_mutex);
         pa_mainloop_iterate(pa_ml, 1, NULL);            
         pthread_mutex_unlock(&m_mutex);        
@@ -1145,11 +1146,10 @@ static PyObject *m_pa_volume_get_balance(PyObject *self, PyObject *args)
 /* FIXME: fuzzy ... more object wait for destruction */
 static PyObject *m_delete(DeepinPulseAudioObject *self) 
 {
-    /* Why state is 3, please see m_pa_connect_loop_cb switch case 3
+    /* Why state is 3, please see m_pa_connect_loop_cb switch case 3*/
     self->state = 3;
     if (self->thread) 
         pthread_cancel(&self->thread);
-    */
     
     if (self->output_devices) {
         Py_DecRef(self->output_devices);
