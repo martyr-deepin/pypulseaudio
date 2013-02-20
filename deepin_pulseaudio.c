@@ -498,13 +498,29 @@ static void m_pa_sink_event_cb(pa_context *c,
     }
 
     m_pa_sinklist_cb(c, info, eol, self);
-    PyGILState_STATE gstate;
     if (callback) {
+        PyGILState_STATE gstate;
         gstate = PyGILState_Ensure();
         PyEval_CallFunction(callback, "(Oi)", self, info->index);
-        /* FIXME: why can not unlock ?! 
+    }
+}
+
+static void m_pa_sink_changed_cb(pa_context *c, 
+                                 const pa_sink_info *info, 
+                                 int eol, 
+                                 void *userdata) 
+{
+    if (!c || !info || eol > 0 || !userdata) {
+        return;
+    }
+    
+    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
+    PyGILState_STATE gstate;
+
+    if (self->sink_changed_cb) {
+        gstate = PyGILState_Ensure();
+        PyEval_CallFunction(self->sink_changed_cb, "(i)", info->index);
         PyGILState_Release(gstate);
-        */
     }
 }
 
@@ -652,9 +668,7 @@ static void m_pa_context_subscribe_cb(pa_context *c,
             } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
                 printf("DEBUG sink %d changed\n", idx);
                 if (self->sink_changed_cb) {
-                    pa_context_get_sink_info_by_index(c, idx, m_pa_sink_event_cb,
-                                                      Py_BuildValue("(OO)", (PyObject *)self,
-                                                                    self->sink_changed_cb));
+                    pa_context_get_sink_info_by_index(c, idx, m_pa_sink_changed_cb, self);
                 } else {
                     pa_context_get_sink_info_by_index(c, idx, m_pa_sinklist_cb, self);
                 }
@@ -943,7 +957,9 @@ RE_CONN:
         // Iterate the main loop and go again.  The second argument is whether  
         // or not the iteration should block until something is ready to be        
         // done.  Set it to zero for non-blocking.                              
-        pa_mainloop_iterate(pa_ml, 1, NULL);                                    
+        pthread_mutex_lock(&m_mutex);
+        pa_mainloop_iterate(pa_ml, 1, NULL);            
+        pthread_mutex_unlock(&m_mutex);        
     }                                                                           
                                                                                 
     return NULL;                                                                
@@ -1070,10 +1086,6 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
         return NULL;
     }
 
-<<<<<<< HEAD
-    /* TODO: but without connecting loop how to monitor event? */
-=======
->>>>>>> 837b25ac659094986369f7f9278b21a68aa766c6
     pthread_create(&self->thread, NULL, m_pa_connect_loop_cb, self);
 
     return self;
