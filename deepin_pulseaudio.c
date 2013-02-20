@@ -953,8 +953,8 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
 {
     DeepinPulseAudioObject *self = NULL;
 
-    /*Py_Initialize();*/
-    /*PyEval_InitThreads();*/
+    Py_Initialize();
+    PyEval_InitThreads();
     /*PyEval_ReleaseLock();*/
     self = m_init_deepin_pulseaudio_object();
     if (!self)
@@ -1070,7 +1070,7 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
         return NULL;
     }
 
-    /*pthread_create(&self->thread, NULL, m_pa_connect_loop_cb, self);*/
+    pthread_create(&self->thread, NULL, m_pa_connect_loop_cb, self);
 
     return self;
 }
