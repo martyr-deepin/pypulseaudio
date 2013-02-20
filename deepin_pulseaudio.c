@@ -1070,7 +1070,8 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
         return NULL;
     }
 
-    /*pthread_create(&self->thread, NULL, m_pa_connect_loop_cb, self);*/
+    /* TODO: but without connecting loop how to monitor event? */
+    pthread_create(&self->thread, NULL, m_pa_connect_loop_cb, self);
 
     return self;
 }
