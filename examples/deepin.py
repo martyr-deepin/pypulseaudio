@@ -23,86 +23,85 @@
 import deepin_pulseaudio
 import gobject
 
-def m_sink_new_cb(obj, index):
+deepin_pulseaudio_obj = deepin_pulseaudio.new()
+
+def m_sink_new_cb(index):
     print "DEBUG sink new callback", index
-    sink_dev = obj.get_output_devices()
-    print sink_dev[index]['mute'], obj.get_output_active_ports_by_index(index)[1], obj.get_output_volume_by_index(index)
+    sink_dev = deepin_pulseaudio_obj.get_output_devices()
+    print sink_dev[index]['mute'], deepin_pulseaudio_obj.get_output_active_ports_by_index(index)[1], deepin_pulseaudio_obj.get_output_volume_by_index(index)
     
-def m_sink_changed_cb(obj, index):
+def m_sink_changed_cb(index):
     print "DEBUG sink changed callback", index
-    sink_dev = obj.get_output_devices()
-    print sink_dev[index]['mute'], obj.get_output_active_ports_by_index(index)[1], obj.get_output_volume_by_index(index)
+    sink_dev = deepin_pulseaudio_obj.get_output_devices()
+    print sink_dev[index]['mute'], deepin_pulseaudio_obj.get_output_active_ports_by_index(index)[1], deepin_pulseaudio_obj.get_output_volume_by_index(index)
     
-def m_sink_removed_cb(obj, index):
+def m_sink_removed_cb(index):
     print "DEBUG sink remove callback", index
 
     
-def m_source_new_cb(obj, index):
+def m_source_new_cb(index):
     print "DEBUG source new callback", index
-    source_dev = obj.get_input_devices()
-    print source_dev[index]['mute'], obj.get_input_active_ports_by_index(index)[1], obj.get_input_volume_by_index(index)
+    source_dev = deepin_pulseaudio_obj.get_input_devices()
+    print source_dev[index]['mute'], deepin_pulseaudio_obj.get_input_active_ports_by_index(index)[1], deepin_pulseaudio_obj.get_input_volume_by_index(index)
     
-def m_source_changed_cb(obj, index):
+def m_source_changed_cb(index):
     print "DEBUG source changed callback", index
-    source_dev = obj.get_input_devices()
-    print source_dev[index]['mute'], obj.get_input_active_ports_by_index(index)[1], obj.get_input_volume_by_index(index)
+    source_dev = deepin_pulseaudio_obj.get_input_devices()
+    print source_dev[index]['mute'], deepin_pulseaudio_obj.get_input_active_ports_by_index(index)[1], deepin_pulseaudio_obj.get_input_volume_by_index(index)
     
-def m_source_removed_cb(obj, index):
+def m_source_removed_cb(index):
     print "DEBUG source remove callback", index
 
     
-def m_card_new_cb(obj, index):
+def m_card_new_cb(index):
     print "DEBUG card new callback", index
-    card_dev = obj.get_cards()
+    card_dev = deepin_pulseaudio_obj.get_cards()
     print card_dev[index]
     
-def m_card_changed_cb(obj, index):
+def m_card_changed_cb(index):
     print "DEBUG card changed callback", index
-    card_dev = obj.get_cards()
+    card_dev = deepin_pulseaudio_obj.get_cards()
     print card_dev[index]
     
-def m_card_removed_cb(obj, index):
+def m_card_removed_cb(index):
     print "DEBUG card remove callback", index
 
     
-def m_server_new_cb(obj):
+def m_server_new_cb():
     print "DEBUG server new callback"
-    print obj.get_server_info()
+    print deepin_pulseaudio_obj.get_server_info()
     
-def m_server_changed_cb(obj):
+def m_server_changed_cb():
     print "DEBUG server changed callback"
-    print obj.get_server_info()
+    print deepin_pulseaudio_obj.get_server_info()
     
-def m_server_removed_cb(obj, index):
+def m_server_removed_cb(index):
     print "DEBUG server remove callback", index
 
     
-def m_sink_input_new_cb(obj, index):
+def m_sink_input_new_cb(index):
     print "DEBUG sink_input new callback", index
-    print obj.get_playback_streams()[index]
+    print deepin_pulseaudio_obj.get_playback_streams()[index]
     
-def m_sink_input_changed_cb(obj, index):
+def m_sink_input_changed_cb(index):
     print "DEBUG sink_input changed callback", index
-    print obj.get_playback_streams()[index]
+    print deepin_pulseaudio_obj.get_playback_streams()[index]
     
-def m_sink_input_removed_cb(obj, index):
+def m_sink_input_removed_cb(index):
     print "DEBUG sink_input remove callback", index
-
     
-def m_source_output_new_cb(obj, index):
+def m_source_output_new_cb(index):
     print "DEBUG source_output new callback", index
-    print obj.get_record_streams()[index]
+    print deepin_pulseaudio_obj.get_record_streams()[index]
     
-def m_source_output_changed_cb(obj, index):
+def m_source_output_changed_cb(index):
     print "DEBUG source_output changed callback", index
-    print obj.get_record_streams()[index]
+    print deepin_pulseaudio_obj.get_record_streams()[index]
     
-def m_source_output_removed_cb(obj, index):
+def m_source_output_removed_cb(index):
     print "DEBUG source_output remove callback", index
-    
 
 def test():
-    deepin_pulseaudio_obj = deepin_pulseaudio.new()
     deepin_pulseaudio_obj.connect("sink-new", m_sink_new_cb)
     deepin_pulseaudio_obj.connect("sink-changed", m_sink_changed_cb)
     deepin_pulseaudio_obj.connect("sink-removed", m_sink_removed_cb)
@@ -126,58 +125,6 @@ def test():
     deepin_pulseaudio_obj.connect("server-new", m_server_new_cb)
     deepin_pulseaudio_obj.connect("server-changed", m_server_changed_cb)
     deepin_pulseaudio_obj.connect("server-removed", m_server_removed_cb)
-   
-    deepin_pulseaudio_obj.connect_to_pulse()
-
-    #print "========get_output_ports testcase========"
-    #output_ports = deepin_pulseaudio_obj.get_output_ports()
-    #print output_ports
-    #print "========get_input_ports testcase========"
-    #input_ports = deepin_pulseaudio_obj.get_input_ports()
-    #print input_ports
-    #print "========get_output_devices testcase========"
-    #output_devices = deepin_pulseaudio_obj.get_output_devices()
-    #print output_devices
-    #print "========get_input_devices testcase========"
-    #input_devices = deepin_pulseaudio_obj.get_input_devices()
-    #print input_devices
-    #print "========get_output_channels testcase========"
-    #print deepin_pulseaudio_obj.get_output_channels("")
-    #print "========get_input_channels testcase========"
-    #print deepin_pulseaudio_obj.get_input_channels("")
-    #print "========get_output_active_ports testcase========"
-    #print deepin_pulseaudio_obj.get_output_active_ports("")
-    #print "========get_input_active_ports testcase========" 
-    #print deepin_pulseaudio_obj.get_input_active_ports("")
-    #print "========get_output_mute testcase========"
-    #print deepin_pulseaudio_obj.get_output_mute("")
-    #print "========get_input_mute testcase========"                            
-    #print deepin_pulseaudio_obj.get_input_mute("")      
-    #print "========get_output_volume testcase========"
-    #print deepin_pulseaudio_obj.get_output_volume("")
-    #print "========get_input_volume testcase========"
-    #print deepin_pulseaudio_obj.get_input_volume("")
-    #print "========set_output_active_port testcase========"
-    #'''
-    #@param output device index
-           #you can print get_output_devices to see the indexes
-    #'''
-    #print deepin_pulseaudio_obj.set_output_active_port(1, output_ports[0][1])
-    #print "========set_input_active_port testcase========"                     
-    #print deepin_pulseaudio_obj.set_input_active_port(0, input_ports[0][1])   
-    #print "========set_output_mute testcase========"                     
-    #print deepin_pulseaudio_obj.set_output_mute(1, False)   
-    #print "========set_input_mute testcase========"                      
-    #'''
-    #@param input device index
-           #you can print get_input_devices to see the indexes
-    #@param mute or not
-    #'''
-    #print deepin_pulseaudio_obj.set_input_mute(2, False) 
-    #print "========set_output_volume testcase========"                     
-    #print deepin_pulseaudio_obj.set_output_volume(1, (60000, 60000))   
-    #print "========set_input_volume testcase========"                      
-    #print deepin_pulseaudio_obj.set_input_volume(2, (80000, 80000)) 
 
     mainloop = gobject.MainLoop()
     mainloop.run()
