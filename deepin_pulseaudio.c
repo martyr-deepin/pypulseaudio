@@ -22,7 +22,7 @@
 
 #include <Python.h>
 #include <pulse/pulseaudio.h>
-//#include <pulse/glib-mainloop.h>
+#include <pulse/glib-mainloop.h>
 
 #define PACKAGE "Deepin PulseAudio Python Binding"
 #define PACKAGE_VERSION "0.1"
@@ -44,8 +44,8 @@
 typedef struct {
     PyObject_HEAD
     PyObject *dict; /* Python attributes dictionary */
-    //pa_glib_mainloop *pa_ml;
-    pa_threaded_mainloop *pa_ml;
+    pa_glib_mainloop *pa_ml;
+    //pa_threaded_mainloop *pa_ml;
     pa_context *pa_ctx;
     pa_mainloop_api* pa_mlapi;
     // callback function
@@ -520,32 +520,44 @@ static void m_pa_sink_changed_cb(pa_context *c,
 
     if (self->sink_changed_cb) {
         gstate = PyGILState_Ensure();
-        printf("DEBUG call %d %d\n", self->sink_changed_cb, info->index);
         PyEval_CallFunction(self->sink_changed_cb, "(n)", info->index);
         PyGILState_Release(gstate);
     }
 }
 
-static void m_pa_source_event_cb(pa_context *c,
+static void m_pa_source_new_cb(pa_context *c,                               
+                                 const pa_source_info *info,                    
+                                 int eol,                                       
+                                 void *userdata)                                
+{                                                                               
+    if (!c || !info || eol > 0 || !userdata)                                    
+        return;                                                                 
+                                                                                
+    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;         
+    PyGILState_STATE gstate;                                                    
+                                                                                
+    if (self->source_new_cb) {                                                  
+        gstate = PyGILState_Ensure();                                           
+        PyEval_CallFunction(self->source_new_cb, "(i)", info->index);           
+        PyGILState_Release(gstate);                                             
+    }                                                                           
+}
+
+static void m_pa_source_changed_cb(pa_context *c,
                                  const pa_source_info *info,
                                  int eol,
                                  void *userdata)
 {
-    if (eol > 0 || !info) {
+    if (!c || !info || eol > 0 || !userdata) 
         return;
-    }
-    PyObject *self = NULL;
-    PyObject *callback = NULL;
-    if (!PyArg_ParseTuple(userdata, "OO", &self, &callback)) {
-        ERROR("invalid arguments to set_fallback_source");
-        return;
-    }
 
-    m_pa_sourcelist_cb(c, info, eol, self);
+    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
     PyGILState_STATE gstate;
-    if (callback) {
+    
+    if (self->source_changed_cb) {
         gstate = PyGILState_Ensure();
-        PyEval_CallFunction(callback, "(Oi)", self, info->index);
+        PyEval_CallFunction(self->source_changed_cb, "(i)", info->index);
+        PyGILState_Release(gstate);
     }
 }
 
@@ -704,20 +716,16 @@ static void m_pa_context_subscribe_cb(pa_context *c,
             if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_NEW) {
                 printf("DEBUG source %d new\n", idx);
                 if (self->source_new_cb) {
-                    pa_context_get_source_info_by_index(c, idx, m_pa_source_event_cb,
-                                                      Py_BuildValue("(OO)", (PyObject *)self,
-                                                                    self->source_new_cb));
+                    pa_context_get_source_info_by_index(c, idx, m_pa_source_new_cb, self);
                 } else {
-                    pa_context_get_source_info_by_index(c, idx, m_pa_source_event_cb, self);
+                    //pa_context_get_source_info_by_index(c, idx, m_pa_source_event_cb, self);
                 }
             } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
                 printf("DEBUG source %d changed\n", idx);
                 if (self->source_changed_cb) {
-                    pa_context_get_source_info_by_index(c, idx, m_pa_source_event_cb,
-                                                      Py_BuildValue("(OO)", (PyObject *)self,
-                                                                    self->source_changed_cb));
+                    pa_context_get_source_info_by_index(c, idx, m_pa_source_changed_cb, self);
                 } else {
-                    pa_context_get_source_info_by_index(c, idx, m_pa_source_event_cb, self);
+                    //pa_context_get_source_info_by_index(c, idx, m_pa_source_event_cb, self);
                 }
             } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
                 printf("DEBUG source %d removed\n", idx);
@@ -902,7 +910,7 @@ static void m_context_state_cb(pa_context *c, void *userdata)
             self->pa_ctx = NULL;                                                     
                                                                                 
             printf("Connection failed, attempting reconnect\n");          
-            //g_timeout_add_seconds(13, m_connect_to_pulse, self);               
+            g_timeout_add_seconds(13, m_connect_to_pulse, self);               
             return;                                                             
                                                                                 
         case PA_CONTEXT_TERMINATED:                                             
@@ -1051,23 +1059,23 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
         return NULL;
     }
 
-    //self->pa_ml = pa_glib_mainloop_new(g_main_context_default());
-    self->pa_ml = pa_threaded_mainloop_new();
+    self->pa_ml = pa_glib_mainloop_new(g_main_context_default());
+    //self->pa_ml = pa_threaded_mainloop_new();
     if (!self->pa_ml) {
         ERROR("pa_xxx_mainloop_new() failed");
         m_delete(self);
         return NULL;
     }
 
-    //self->pa_mlapi = pa_glib_mainloop_get_api(self->pa_ml);
-    self->pa_mlapi = pa_threaded_mainloop_get_api(self->pa_ml);
+    self->pa_mlapi = pa_glib_mainloop_get_api(self->pa_ml);
+    //self->pa_mlapi = pa_threaded_mainloop_get_api(self->pa_ml);
     if (!self->pa_mlapi) {
         ERROR("pa_xxx_mainloop_get_api() failed");
         m_delete(self);
         return NULL;
     }
 
-    pa_threaded_mainloop_start(self->pa_ml);
+    //pa_threaded_mainloop_start(self->pa_ml);
 
     m_connect_to_pulse(self);
 
@@ -1135,9 +1143,9 @@ static PyObject *m_delete(DeepinPulseAudioObject *self)
     }
 
     if (self->pa_ml) {
-        //pa_glib_mainloop_free(self->pa_ml);
-        pa_threaded_mainloop_stop(self->pa_ml);
-        pa_threaded_mainloop_free(self->pa_ml);
+        pa_glib_mainloop_free(self->pa_ml);
+        //pa_threaded_mainloop_stop(self->pa_ml);
+        //pa_threaded_mainloop_free(self->pa_ml);
         self->pa_ml = NULL;
     }
 
