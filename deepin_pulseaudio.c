@@ -521,8 +521,7 @@ static void m_pa_sink_changed_cb(pa_context *c,
     m_pa_sinklist_cb(c, info, eol, self);
 
     if (self->sink_changed_cb) 
-        printf("DEBUG %d %d\n", self->sink_changed_cb, info->index);
-        //PyEval_CallFunction(self->sink_changed_cb, "(i)", info->index);
+        PyEval_CallFunction(self->sink_changed_cb, "(i)", info->index);
 
     PyGILState_Release(gstate);
 }
