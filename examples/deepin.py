@@ -126,7 +126,9 @@ def test():
     deepin_pulseaudio_obj.connect("server-new", m_server_new_cb)
     deepin_pulseaudio_obj.connect("server-changed", m_server_changed_cb)
     deepin_pulseaudio_obj.connect("server-removed", m_server_removed_cb)
-    
+   
+    deepin_pulseaudio_obj.connect_to_pulse()
+
     #print "========get_output_ports testcase========"
     #output_ports = deepin_pulseaudio_obj.get_output_ports()
     #print output_ports
