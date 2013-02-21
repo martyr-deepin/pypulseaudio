@@ -25,6 +25,9 @@ import gobject
 
 deepin_pulseaudio_obj = deepin_pulseaudio.new()
 
+def __get_cards_cb(index):
+    print "DEBUG get_cards", deepin_pulseaudio_obj.get_cards()
+
 def m_sink_new_cb(index):
     print "DEBUG sink new callback", index
     sink_dev = deepin_pulseaudio_obj.get_output_devices()
@@ -37,7 +40,6 @@ def m_sink_changed_cb(index):
     
 def m_sink_removed_cb(index):
     print "DEBUG sink remove callback", index
-
     
 def m_source_new_cb(index):
     print "DEBUG source new callback", index
@@ -51,7 +53,6 @@ def m_source_changed_cb(index):
     
 def m_source_removed_cb(index):
     print "DEBUG source remove callback", index
-
     
 def m_card_new_cb(index):
     print "DEBUG card new callback", index
@@ -65,7 +66,6 @@ def m_card_changed_cb(index):
     
 def m_card_removed_cb(index):
     print "DEBUG card remove callback", index
-
     
 def m_server_new_cb():
     print "DEBUG server new callback"
@@ -77,7 +77,6 @@ def m_server_changed_cb():
     
 def m_server_removed_cb(index):
     print "DEBUG server remove callback", index
-
     
 def m_sink_input_new_cb(index):
     print "DEBUG sink_input new callback", index
@@ -102,6 +101,8 @@ def m_source_output_removed_cb(index):
     print "DEBUG source_output remove callback", index
 
 def test():
+    deepin_pulseaudio_obj.connect("get-cards", __get_cards_cb)
+
     deepin_pulseaudio_obj.connect("sink-new", m_sink_new_cb)
     deepin_pulseaudio_obj.connect("sink-changed", m_sink_changed_cb)
     deepin_pulseaudio_obj.connect("sink-removed", m_sink_removed_cb)
