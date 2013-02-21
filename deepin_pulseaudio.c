@@ -2052,6 +2052,11 @@ static void m_pa_server_info_cb(pa_context *c,
                                 const pa_server_info *i, 
                                 void *userdata)
 {
+    if (!c || !i || !userdata) 
+        return;
+
+    PyGILState_STATE gstate = PyGILState_Ensure();
+    
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
 
     PyDict_SetItemString(self->server_info,
@@ -2076,6 +2081,8 @@ static void m_pa_server_info_cb(pa_context *c,
     PyDict_SetItemString(self->server_info,
                          "cookie",
                          INT(i->cookie));
+
+    PyGILState_Release(gstate);
 }
 
 static void m_pa_cardlist_cb(pa_context *c,
@@ -2083,11 +2090,12 @@ static void m_pa_cardlist_cb(pa_context *c,
                              int eol,
                              void *userdata)
 {
-    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
-
-    // If eol is set to a positive number, you're at the end of the list        
-    if (!c || !i || eol > 0) 
+    if (!c || !i || eol > 0 || !userdata) 
         return;
+    
+    PyGILState_STATE gstate = PyGILState_Ensure();
+
+    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
 
     PyObject *card_dict = NULL;         // a dict save the card info
     PyObject *profile_list = NULL;      // card_profile_info list
@@ -2200,15 +2208,20 @@ static void m_pa_cardlist_cb(pa_context *c,
     key = INT(i->index);
     PyDict_SetItem(self->card_devices, key, card_dict);
     /*Py_DecRef(key);*/
+
+    PyGILState_Release(gstate);
 }
-// pa_mainloop will call this function when it's ready to tell us about a sink. 
-// Since we're not threading, there's no need for mutexes on the devicelist     
-// structure                                                                    
+
 static void m_pa_sinklist_cb(pa_context *c, 
                              const pa_sink_info *l, 
                              int eol, 
                              void *userdata) 
 {
+    if (!c || !l || eol > 0 || !userdata) 
+        return;
+    
+    PyGILState_STATE gstate = PyGILState_Ensure();
+    
     DeepinPulseAudioObject *self = userdata;
     pa_sink_port_info **ports  = NULL;                                          
     pa_sink_port_info *port = NULL;        
@@ -2222,11 +2235,6 @@ static void m_pa_sinklist_cb(pa_context *c,
     int i = 0;
     const char *prop_key;
     void *prop_state = NULL;
-                                                                                
-    // If eol is set to a positive number, you're at the end of the list        
-    if (eol > 0 || !l) {                                                              
-        return;                                                                 
-    }
 
     channel_value = PyList_New(0);
     if (!channel_value) {
@@ -2306,6 +2314,8 @@ static void m_pa_sinklist_cb(pa_context *c,
                                  "proplist", prop_dict));    
     /*Py_DecRef(key);*/
     /*Py_DecRef(volume_value);*/
+
+    PyGILState_Release(gstate);
 }                   
 
 // See above.  This callback is pretty much identical to the previous
@@ -2314,6 +2324,11 @@ static void m_pa_sourcelist_cb(pa_context *c,
                                int eol, 
                                void *userdata) 
 {
+    if (!c || !l || eol > 0 || !userdata) 
+        return;
+
+    PyGILState_STATE gstate = PyGILState_Ensure();
+
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
     pa_source_port_info **ports = NULL;                                         
     pa_source_port_info *port = NULL;      
@@ -2406,6 +2421,8 @@ static void m_pa_sourcelist_cb(pa_context *c,
                                  "proplist", prop_dict));    
     /*Py_DecRef(key);*/
     /*Py_DecRef(volume_value);*/
+
+    PyGILState_Release(gstate);
 }                   
 
 static void m_pa_sinkinputlist_info_cb(pa_context *c,
@@ -2413,9 +2430,11 @@ static void m_pa_sinkinputlist_info_cb(pa_context *c,
                                        int eol,
                                        void *userdata)
 {
-    if (eol > 0 || !l) {
+    if (!c || !l || eol > 0 || !userdata) 
         return;
-    }
+    
+    PyGILState_STATE gstate = PyGILState_Ensure();
+
     DeepinPulseAudioObject *self = userdata;
     PyObject *key = NULL;
     PyObject *volume_value = NULL;
@@ -2472,6 +2491,8 @@ static void m_pa_sinkinputlist_info_cb(pa_context *c,
                                  "volume_writable", l->volume_writable));
     /*Py_DecRef(channel_value);*/
     /*Py_DecRef(volume_value);*/
+
+    PyGILState_Release(gstate);
 }
 
 static void m_pa_sourceoutputlist_info_cb(pa_context *c,
@@ -2479,9 +2500,11 @@ static void m_pa_sourceoutputlist_info_cb(pa_context *c,
                                           int eol,
                                           void *userdata)
 {
-    if (eol > 0 || !l) {
+    if (!c || !l || eol > 0 || !userdata) 
         return;
-    }
+    
+    PyGILState_STATE gstate = PyGILState_Ensure();
+
     DeepinPulseAudioObject *self = userdata;
     PyObject *key = NULL;
     PyObject *volume_value = NULL;
@@ -2538,4 +2561,6 @@ static void m_pa_sourceoutputlist_info_cb(pa_context *c,
                                  "volume_writable", l->volume_writable));
     /*Py_DecRef(channel_value);*/
     /*Py_DecRef(volume_value);*/
+
+    PyGILState_Release(gstate);
 }
