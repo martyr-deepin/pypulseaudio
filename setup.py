@@ -1,8 +1,15 @@
 #! /usr/bin/env python
 
 from setuptools import setup, Extension
+import commands
+
+def pkg_config_cflags(pkgs):                                                    
+    '''List all include paths that output by `pkg-config --cflags pkgs`'''         
+    return map(lambda path: path[2::], commands.getoutput('pkg-config --cflags-only-I %s' % (' '.join(pkgs))).split())
 
 deepin_pulseaudio_mod = Extension('deepin_pulseaudio', 
+                #include_dirs = pkg_config_cflags(['glib-2.0']),
+                #libraries = ['pulse', 'pulse-mainloop-glib'],
                 libraries = ['pulse'],
                 sources = ['deepin_pulseaudio.c'])
 

@@ -21,7 +21,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import deepin_pulseaudio
-import time
+import gobject
 
 def m_sink_new_cb(obj, index):
     print "DEBUG sink new callback", index
@@ -126,7 +126,7 @@ def test():
     deepin_pulseaudio_obj.connect("server-new", m_server_new_cb)
     deepin_pulseaudio_obj.connect("server-changed", m_server_changed_cb)
     deepin_pulseaudio_obj.connect("server-removed", m_server_removed_cb)
-    deepin_pulseaudio_obj.get_devices()
+    
     #print "========get_output_ports testcase========"
     #output_ports = deepin_pulseaudio_obj.get_output_ports()
     #print output_ports
@@ -176,10 +176,9 @@ def test():
     #print deepin_pulseaudio_obj.set_output_volume(1, (60000, 60000))   
     #print "========set_input_volume testcase========"                      
     #print deepin_pulseaudio_obj.set_input_volume(2, (80000, 80000)) 
-    while True:
-        time.sleep(100)
 
-    deepin_pulseaudio_obj.delete()
+    mainloop = gobject.MainLoop()
+    mainloop.run()
 
 '''
 i = 0
