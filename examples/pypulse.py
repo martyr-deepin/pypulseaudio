@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 #-*- coding:utf-8 -*-
 
-# Copyright (C) 2011 ~ 2012 Deepin, Inc.
-#               2011 ~ 2012 Long Changjin
+# Copyright (C) 2011 ~ 2013 Deepin, Inc.
+#               2011 ~ 2013 Long Changjin
 # 
 # Author:     Long Changjin <admin@longchangjin.cn>
 # Maintainer: Long Changjin <admin@longchangjin.cn>
@@ -32,6 +32,8 @@ MAX_VOLUME_VALUE = deepin_pulseaudio.VOLUME_UI_MAX
 NORMAL_VOLUME_VALUE = deepin_pulseaudio.VOLUME_NORM
 
 PULSE = deepin_pulseaudio.new()
+PULSE.set_threadable(True)
+PULSE.connect_to_pulse()
 
 def get_volume_balance(channel_num, volume_list, channel_list):
     return deepin_pulseaudio.volume_get_balance(channel_num, volume_list, channel_list)

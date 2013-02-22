@@ -96,7 +96,7 @@ static PyObject *m_pa_volume_get_balance(PyObject *self, PyObject *args);
 
 static PyMethodDef deepin_pulseaudio_methods[] = 
 {
-    {"new", m_new, METH_VARARGS, "Deepin PulseAudio Construction"}, 
+    {"new", m_new, METH_NOARGS, "Deepin PulseAudio Construction"}, 
     {"volume_get_balance", m_pa_volume_get_balance, METH_VARARGS, "Get volume balance"},
     {NULL, NULL, 0, NULL}
 };
@@ -441,7 +441,7 @@ static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object()
 
     self->dict = NULL;
    
-    self->threadable = 0;
+    self->threadable = 0;   // off threadable by default
 
     self->pa_ml = NULL;
     self->pa_ctx = NULL;
@@ -522,16 +522,21 @@ static void m_pa_sink_changed_cb(pa_context *c,
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
     PyGILState_STATE gstate;
 
-    if (self->threadable) 
+    if (self->threadable) { 
         gstate = PyGILState_Ensure();
+        printf("DEBUG self->pa_ml %d\n", self->pa_ml);
+        //pa_threaded_mainloop_lock(self->pa_ml);
+    }
 
     m_pa_sinklist_cb(c, info, eol, self);
 
     if (self->sink_changed_cb) 
         PyEval_CallFunction(self->sink_changed_cb, "(i)", info->index);
 
-    if (self->threadable)
+    if (self->threadable) {
+        //pa_threaded_mainloop_unlock(self->pa_ml);
         PyGILState_Release(gstate);
+    }
 }
 
 static void m_pa_source_new_cb(pa_context *c,                               
@@ -814,7 +819,7 @@ static void m_pa_context_subscribe_cb(pa_context *c,
                 if (self->output_volume && PyDict_Contains(self->output_volume, key)) {
                     PyDict_DelItem(self->output_volume, key);
                 }
-                Py_DecRef(key);
+                Py_XDECREF(key);
                 m_pa_removed_event_cb(c, self->sink_removed_cb, idx, self);
             }
             break;
@@ -852,7 +857,7 @@ static void m_pa_context_subscribe_cb(pa_context *c,
                 if (self->input_volume && PyDict_Contains(self->input_volume, key)) {
                     PyDict_DelItem(self->input_volume, key);
                 }
-                Py_DecRef(key);
+                Py_XDECREF(key);
                 m_pa_removed_event_cb(c, self->source_removed_cb, idx, self);
             }
             break;
@@ -875,7 +880,7 @@ static void m_pa_context_subscribe_cb(pa_context *c,
                 if (self->playback_streams && PyDict_Contains(self->playback_streams, key)) {
                     PyDict_DelItem(self->playback_streams, key);
                 }
-                Py_DecRef(key);
+                Py_XDECREF(key);
                 m_pa_removed_event_cb(c, self->sink_input_removed_cb, idx, self);
             }
             break;
@@ -898,7 +903,7 @@ static void m_pa_context_subscribe_cb(pa_context *c,
                 if (self->record_stream && PyDict_Contains(self->record_stream, key)) {
                     PyDict_DelItem(self->record_stream, key);
                 }
-                Py_DecRef(key);
+                Py_XDECREF(key);
                 m_pa_removed_event_cb(c, self->source_output_removed_cb, idx, self);
             }
             break;
@@ -940,7 +945,7 @@ static void m_pa_context_subscribe_cb(pa_context *c,
                 if (self->card_devices && PyDict_Contains(self->card_devices, key)) {
                     PyDict_DelItem(self->card_devices, key);
                 }
-                Py_DecRef(key);
+                Py_XDECREF(key);
                 m_pa_removed_event_cb(c, self->card_removed_cb, idx, self);
             }
             break;
@@ -1252,12 +1257,12 @@ static PyObject *m_delete(DeepinPulseAudioObject *self)
     }
 
     if (self->output_devices) {
-        Py_DecRef(self->output_devices);
+        Py_XDECREF(self->output_devices);
         self->output_devices = NULL;
     }
 
     if (self->input_devices) {
-        Py_DecRef(self->input_devices);
+        Py_XDECREF(self->input_devices);
         self->input_devices = NULL;
     }
 
@@ -2287,7 +2292,7 @@ static void m_pa_cardlist_cb(pa_context *c,
 
     key = INT(i->index);
     PyDict_SetItem(self->card_devices, key, card_dict);
-    /*Py_DecRef(key);*/
+    /*Py_XDECREF(key);*/
 
     if (self->get_cards_cb)
         PyEval_CallFunction(self->get_cards_cb, "(i)", i->index);
@@ -2344,11 +2349,6 @@ static void m_pa_sinklist_cb(pa_context *c,
         return;
     }
                                                                                 
-    // We know we've allocated 16 slots to hold devices.  Loop through our      
-    // structure and find the first one that's "uninitialized."  Copy the       
-    // contents into it and we're done.  If we receive more than 16 devices,    
-    // they're going to get dropped.  You could make this dynamically allocate  
-    // space for the device list, but this is a simple example.                 
     key = INT(l->index);
     while ((prop_key=pa_proplist_iterate(l->proplist, &prop_state))) {
         PyDict_SetItemString(prop_dict, prop_key,
@@ -2363,7 +2363,7 @@ static void m_pa_sinklist_cb(pa_context *c,
                                  "can_balance", pa_channel_map_can_balance(&l->channel_map),
                                  "channels", l->channel_map.channels,
                                  "map", channel_value));
-    /*Py_DecRef(channel_value);*/
+    Py_XDECREF(channel_value);
     // ports list
     ports = l->ports;   
     for (i = 0; i < l->n_ports; i++) {                                  
@@ -2381,7 +2381,7 @@ static void m_pa_sinklist_cb(pa_context *c,
                                           active_port->description, 
                                           active_port->available);
         PyDict_SetItem(self->output_active_ports, key, active_port_value);
-        /*Py_DecRef(active_port_value);*/
+        Py_XDECREF(active_port_value);
     } else {
         PyDict_SetItem(self->output_active_ports, key, Py_None);
     }
@@ -2399,8 +2399,8 @@ static void m_pa_sinklist_cb(pa_context *c,
                                  "mute", PyBool_FromLong(l->mute),
                                  "ports", port_list,
                                  "proplist", prop_dict));    
-    /*Py_DecRef(key);*/
-    /*Py_DecRef(volume_value);*/
+    Py_XDECREF(key);
+    Py_XDECREF(volume_value);
 
     if (self->threadable)
         PyGILState_Release(gstate);
@@ -2474,7 +2474,7 @@ static void m_pa_sourcelist_cb(pa_context *c,
                                  "can_balance", pa_channel_map_can_balance(&l->channel_map),
                                  "channels", l->channel_map.channels,
                                  "map", channel_value));
-    /*Py_DecRef(channel_value);   */
+    /*Py_XDECREF(channel_value);   */
     // ports list
     ports = l->ports;                                                   
     for (i = 0; i < l->n_ports; i++) {                                  
@@ -2492,7 +2492,7 @@ static void m_pa_sourcelist_cb(pa_context *c,
                                           active_port->description,         
                                           active_port->available);               
         PyDict_SetItem(self->input_active_ports, key, active_port_value);
-        /*Py_DecRef(active_port_value);                                       */
+        /*Py_XDECREF(active_port_value);                                       */
     } else {
         PyDict_SetItem(self->input_active_ports, key, Py_None);
     }
@@ -2510,8 +2510,8 @@ static void m_pa_sourcelist_cb(pa_context *c,
                                  "mute", PyBool_FromLong(l->mute),
                                  "ports", port_list,
                                  "proplist", prop_dict));    
-    /*Py_DecRef(key);*/
-    /*Py_DecRef(volume_value);*/
+    /*Py_XDECREF(key);*/
+    /*Py_XDECREF(volume_value);*/
 
     if (self->threadable)
         PyGILState_Release(gstate);
@@ -2584,8 +2584,8 @@ static void m_pa_sinkinputlist_info_cb(pa_context *c,
                                  "mute", l->mute,
                                  "has_volume", l->has_volume,
                                  "volume_writable", l->volume_writable));
-    /*Py_DecRef(channel_value);*/
-    /*Py_DecRef(volume_value);*/
+    /*Py_XDECREF(channel_value);*/
+    /*Py_XDECREF(volume_value);*/
 
     if (self->threadable)
         PyGILState_Release(gstate);
@@ -2658,8 +2658,8 @@ static void m_pa_sourceoutputlist_info_cb(pa_context *c,
                                  "mute", l->mute,
                                  "has_volume", l->has_volume,
                                  "volume_writable", l->volume_writable));
-    /*Py_DecRef(channel_value);*/
-    /*Py_DecRef(volume_value);*/
+    /*Py_XDECREF(channel_value);*/
+    /*Py_XDECREF(volume_value);*/
 
     if (self->threadable) 
         PyGILState_Release(gstate);
