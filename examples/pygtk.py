@@ -3,15 +3,12 @@
 import pygtk
 import gtk
 import pypulse
-from deepin_utils.process import run_command
 
 def sink_changed(index):
     print "DEBUG sink_changed", index
 
-pypulse.PULSE_SIGNAL.connect("sink-changed", sink_changed)
-
 def value_changed(widget):
-    run_command("pacmd set-sink-volume 1 %d" % widget.value)
+    print "DEBUG value_changed", widget.value
     '''
     current_sink = pypulse.get_fallback_sink_index()                        
     if current_sink is None:                                                
@@ -31,7 +28,7 @@ def value_changed(widget):
 def destroy(*args):
     """ Callback function that is activated when the program is destoyed """
     pypulse.PULSE.delete()
-    #pypulse.PULSE_SIGNAL.delete()
+    pypulse.PULSE_SIGNAL.delete()
     gtk.main_quit()
 
 window = gtk.Window(gtk.WINDOW_TOPLEVEL)
@@ -40,6 +37,8 @@ window.connect("destroy", destroy)
 window.set_border_width(10)
 
 print pypulse.PULSE.get_cards()
+
+pypulse.PULSE_SIGNAL.connect("sink-changed", sink_changed)
 
 adjust = gtk.Adjustment(value=90, lower=0, upper=120, step_incr=1, page_incr=1)
 adjust.connect("value-changed", value_changed)
