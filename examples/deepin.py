@@ -24,6 +24,7 @@ import deepin_pulseaudio
 import gobject
 
 deepin_pulseaudio_obj = deepin_pulseaudio.new()
+deepin_pulseaudio_obj.connect_to_pulse()
 
 def __get_cards_cb(index):
     print "DEBUG get_cards", deepin_pulseaudio_obj.get_cards()
@@ -130,12 +131,4 @@ def test():
     mainloop = gobject.MainLoop()
     mainloop.run()
 
-'''
-i = 0
-while i < 1024:
-    test()
-    i += 1
-'''
-
 test()
-
