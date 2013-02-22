@@ -1313,6 +1313,7 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
 {
     pa_operation *pa_op = NULL;                                                        
 
+    /* FIXME: it is not suitable to place here
     PyDict_Clear(self->server_info);
     PyDict_Clear(self->card_devices);
 
@@ -1330,6 +1331,7 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
     PyDict_Clear(self->output_volume);
     PyDict_Clear(self->playback_streams);
     PyDict_Clear(self->record_stream);
+    */
 
     pa_op = pa_context_get_sink_info_list(self->pa_ctx, m_pa_sinklist_cb, self); 
     if (!pa_op) {
@@ -2176,7 +2178,7 @@ static void m_pa_sinklist_cb(pa_context *c,
 {
     if (!c || !l || eol > 0 || !userdata) 
         return;
-    
+   
     DeepinPulseAudioObject *self = userdata;
 
     pa_sink_port_info **ports  = NULL;                                          
@@ -2214,7 +2216,7 @@ static void m_pa_sinklist_cb(pa_context *c,
     }
                                                                                 
     key = INT(l->index);
-    while ((prop_key=pa_proplist_iterate(l->proplist, &prop_state))) {
+    while ((prop_key = pa_proplist_iterate(l->proplist, &prop_state))) {
         PyDict_SetItemString(prop_dict, prop_key,
                              STRING(pa_proplist_gets(l->proplist, prop_key)));
     }
@@ -2260,7 +2262,7 @@ static void m_pa_sinklist_cb(pa_context *c,
                                  "n_ports", l->n_ports,
                                  "mute", PyBool_FromLong(l->mute),
                                  "ports", port_list,
-                                 "proplist", prop_dict));    
+                                 "proplist", prop_dict));
 }                   
 
 // See above.  This callback is pretty much identical to the previous

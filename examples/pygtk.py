@@ -10,7 +10,6 @@ def sink_changed(index):
 pypulse.PULSE.connect("sink-changed", sink_changed)
 
 def value_changed(widget):
-    print "DEBUG value_changed", widget.value
     current_sink = pypulse.get_fallback_sink_index()                        
     if current_sink is None:                                                
         print "DEBUG current_sink is None"
