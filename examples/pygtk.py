@@ -8,7 +8,7 @@ from deepin_utils.process import run_command
 def sink_changed(index):
     print "DEBUG sink_changed", index
 
-pypulse.PULSE.connect("sink-changed", sink_changed)
+pypulse.PULSE_SIGNAL.connect("sink-changed", sink_changed)
 
 def value_changed(widget):
     run_command("pacmd set-sink-volume 1 %d" % widget.value)
@@ -31,6 +31,7 @@ def value_changed(widget):
 def destroy(*args):
     """ Callback function that is activated when the program is destoyed """
     pypulse.PULSE.delete()
+    #pypulse.PULSE_SIGNAL.delete()
     gtk.main_quit()
 
 window = gtk.Window(gtk.WINDOW_TOPLEVEL)
