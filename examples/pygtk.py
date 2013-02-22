@@ -9,7 +9,6 @@ def sink_changed(index):
 
 def value_changed(widget):
     print "DEBUG value_changed", widget.value
-    '''
     current_sink = pypulse.get_fallback_sink_index()                        
     if current_sink is None:                                                
         print "DEBUG current_sink is None"
@@ -23,12 +22,10 @@ def value_changed(widget):
     volume = int(widget.value / 100.0 * pypulse.NORMAL_VOLUME_VALUE)
     print "DEBUG speaker volumel set:", balance, volume                           
     pypulse.PULSE.set_output_volume_with_balance(current_sink, volume, balance)
-    '''
 
 def destroy(*args):
     """ Callback function that is activated when the program is destoyed """
     pypulse.PULSE.delete()
-    pypulse.PULSE_SIGNAL.delete()
     gtk.main_quit()
 
 window = gtk.Window(gtk.WINDOW_TOPLEVEL)
@@ -37,8 +34,6 @@ window.connect("destroy", destroy)
 window.set_border_width(10)
 
 print pypulse.PULSE.get_cards()
-
-pypulse.PULSE_SIGNAL.connect("sink-changed", sink_changed)
 
 adjust = gtk.Adjustment(value=90, lower=0, upper=120, step_incr=1, page_incr=1)
 adjust.connect("value-changed", value_changed)

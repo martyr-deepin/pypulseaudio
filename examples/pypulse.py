@@ -22,7 +22,6 @@
 
 try:
     import deepin_pulseaudio
-    import deepin_pulseaudio_signal
 except ImportError:
     print "----------Please Install Deepin Pulseaudio Python Binding----------"   
     print "git clone git@github.com:linuxdeepin/pypulseaudio.git"
@@ -34,9 +33,6 @@ NORMAL_VOLUME_VALUE = deepin_pulseaudio.VOLUME_NORM
 
 PULSE = deepin_pulseaudio.new()
 PULSE.get_devices()
-
-PULSE_SIGNAL = deepin_pulseaudio_signal.new()
-PULSE_SIGNAL.connect_to_pulse()
 
 def get_volume_balance(channel_num, volume_list, channel_list):
     return deepin_pulseaudio.volume_get_balance(channel_num, volume_list, channel_list)
