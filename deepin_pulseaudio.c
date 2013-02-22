@@ -41,7 +41,6 @@
 typedef struct {
     PyObject_HEAD
     PyObject *dict; /* Python attributes dictionary */
-    int threadable;
     pa_threaded_mainloop *pa_ml;
     pa_context *pa_ctx;
     pa_mainloop_api* pa_mlapi;
@@ -102,7 +101,6 @@ static PyMethodDef deepin_pulseaudio_methods[] =
 };
 
 static PyObject *m_delete(DeepinPulseAudioObject *self);
-static PyObject *m_set_threadable(DeepinPulseAudioObject *self, PyObject *args);
 static PyObject *m_connect_to_pulse(DeepinPulseAudioObject *self);
 static PyObject *m_connect(DeepinPulseAudioObject *self, PyObject *args);
 static void m_pa_server_info_cb(pa_context *c,
@@ -183,7 +181,6 @@ static PyObject *m_set_fallback_source(DeepinPulseAudioObject *self, PyObject *a
 static PyMethodDef deepin_pulseaudio_object_methods[] = 
 {
     {"delete", m_delete, METH_NOARGS, "Deepin PulseAudio destruction"}, 
-    {"set_threadable", m_set_threadable, METH_VARARGS, "Set thread ablility"}, 
     {"connect_to_pulse", m_connect_to_pulse, METH_NOARGS, "Connect to PulseAudio"}, 
     {"connect", m_connect, METH_VARARGS, "Connect signal callback"}, 
     {"get_server_info", m_get_server_info, METH_NOARGS, "Get server info"},
@@ -440,8 +437,6 @@ static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object()
     PyObject_GC_Track(self);
 
     self->dict = NULL;
-   
-    self->threadable = 0;   // off threadable by default
 
     self->pa_ml = NULL;
     self->pa_ctx = NULL;
@@ -488,26 +483,19 @@ static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object()
 }
 
 static void m_pa_sink_new_cb(pa_context *c,
-                               const pa_sink_info *info,
-                               int eol,
-                               void *userdata)
+                             const pa_sink_info *info,
+                             int eol,
+                             void *userdata)
 {
     if (!c || !info || eol > 0 || !userdata) 
         return;
 
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
-    PyGILState_STATE gstate;
 
-    if (self->threadable) 
-        gstate = PyGILState_Ensure();
-
-    m_pa_sinklist_cb(c, info, eol, self);
+    m_pa_sinklist_cb(c, info, eol, userdata);
 
     if (self->sink_new_cb) 
         PyEval_CallFunction(self->sink_new_cb, "(i)", info->index);
-
-    if (self->threadable)
-        PyGILState_Release(gstate);
 }
 
 static void m_pa_sink_changed_cb(pa_context *c, 
@@ -520,18 +508,11 @@ static void m_pa_sink_changed_cb(pa_context *c,
     }
 
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
-    PyGILState_STATE gstate;
 
-    if (self->threadable) 
-        gstate = PyGILState_Ensure();
-
-    m_pa_sinklist_cb(c, info, eol, self);
+    m_pa_sinklist_cb(c, info, eol, userdata);
 
     if (self->sink_changed_cb) 
         PyEval_CallFunction(self->sink_changed_cb, "(i)", info->index);
-
-    if (self->threadable) 
-        PyGILState_Release(gstate);
 }
 
 static void m_pa_source_new_cb(pa_context *c,                               
@@ -543,16 +524,11 @@ static void m_pa_source_new_cb(pa_context *c,
         return;                                                                 
 
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;         
-    PyGILState_STATE gstate;
 
-    if (self->threadable) 
-        gstate = PyGILState_Ensure();
+    m_pa_sourcelist_cb(c, info, eol, userdata);
 
     if (self->source_new_cb)                                      
         PyEval_CallFunction(self->source_new_cb, "(i)", info->index);
-
-    if (self->threadable)
-        PyGILState_Release(gstate);
 }
 
 static void m_pa_source_changed_cb(pa_context *c,
@@ -564,16 +540,11 @@ static void m_pa_source_changed_cb(pa_context *c,
         return;
 
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
-    PyGILState_STATE gstate;
 
-    if (self->threadable) 
-        gstate = PyGILState_Ensure();
+    m_pa_sourcelist_cb(c, info, eol, userdata);
 
     if (self->source_changed_cb) 
         PyEval_CallFunction(self->source_changed_cb, "(i)", info->index);
-
-    if (self->threadable)
-        PyGILState_Release(gstate);
 }
 
 static void m_pa_sink_input_new_cb(pa_context *c,
@@ -585,16 +556,11 @@ static void m_pa_sink_input_new_cb(pa_context *c,
         return;
 
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
-    PyGILState_STATE gstate;
 
-    if (self->threadable) 
-        gstate = PyGILState_Ensure();
+    m_pa_sinkinputlist_info_cb(c, info, eol, userdata);
 
     if (self->sink_input_new_cb) 
         PyEval_CallFunction(self->sink_input_new_cb, "(i)", info->index);
-
-    if (self->threadable) 
-        PyGILState_Release(gstate);
 }
 
 static void m_pa_sink_input_changed_cb(pa_context *c,                               
@@ -606,16 +572,11 @@ static void m_pa_sink_input_changed_cb(pa_context *c,
         return;                                                                     
                                                                                     
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;             
-    PyGILState_STATE gstate;
 
-    if (self->threadable) 
-        gstate = PyGILState_Ensure();
+    m_pa_sinkinputlist_info_cb(c, info, eol, userdata);
 
-    if (self->sink_changed_cb)                                                          
-        PyEval_CallFunction(self->sink_changed_cb, "(i)", info->index);               
-                                                                               
-    if (self->threadable)
-        PyGILState_Release(gstate);                                                 
+    if (self->sink_input_changed_cb)                                                          
+        PyEval_CallFunction(self->sink_input_changed_cb, "(i)", info->index);               
 }
 
 static void m_pa_source_output_new_cb(pa_context *c,
@@ -627,16 +588,11 @@ static void m_pa_source_output_new_cb(pa_context *c,
         return;
 
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
-    PyGILState_STATE gstate;
 
-    if (self->threadable) 
-        gstate = PyGILState_Ensure();
+    m_pa_sourceoutputlist_info_cb(c, info, eol, userdata);
 
     if (self->source_output_new_cb) 
         PyEval_CallFunction(self->source_output_new_cb, "(i)", info->index);
-
-    if (self->threadable) 
-        PyGILState_Release(gstate);
 }
 
 static void m_pa_source_output_changed_cb(pa_context *c,                                
@@ -648,16 +604,11 @@ static void m_pa_source_output_changed_cb(pa_context *c,
         return;                                                                     
                                                                                     
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;             
-    PyGILState_STATE gstate;
 
-    if (self->threadable) 
-        gstate = PyGILState_Ensure();  
+    m_pa_sourceoutputlist_info_cb(c, info, eol, userdata);
 
     if (self->source_output_changed_cb)                                                 
         PyEval_CallFunction(self->source_output_changed_cb, "(i)", info->index);    
-                                                                                  
-    if (self->threadable) 
-        PyGILState_Release(gstate);                                                    
 }
 
 static void m_pa_server_new_cb(pa_context *c,
@@ -668,16 +619,11 @@ static void m_pa_server_new_cb(pa_context *c,
         return;
 
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
-    PyGILState_STATE gstate;
 
-    if (self->threadable) 
-        gstate = PyGILState_Ensure();
+    m_pa_server_info_cb(c, info, userdata);
 
     if (self->server_new_cb) 
         PyEval_CallFunction(self->server_new_cb, NULL);
-
-    if (self->threadable)
-        PyGILState_Release(gstate);
 }
 
 static void m_pa_server_changed_cb(pa_context *c,                                   
@@ -688,16 +634,11 @@ static void m_pa_server_changed_cb(pa_context *c,
         return;                                                                     
                                                                                     
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;             
-    PyGILState_STATE gstate;
 
-    if (self->threadable) 
-        gstate = PyGILState_Ensure();
+    m_pa_server_info_cb(c, info, userdata);
 
     if (self->server_changed_cb)                                                        
         PyEval_CallFunction(self->server_changed_cb, NULL);                         
-                                                                                
-    if (self->threadable)
-        PyGILState_Release(gstate);                                                 
 }
 
 static void m_pa_card_new_cb(pa_context *c,
@@ -709,18 +650,11 @@ static void m_pa_card_new_cb(pa_context *c,
         return;
 
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
-    PyGILState_STATE gstate;
-
-    if (self->threadable) 
-        gstate = PyGILState_Ensure();
 
     m_pa_cardlist_cb(c, info, eol, self);
 
     if (self->card_new_cb) 
         PyEval_CallFunction(self->card_new_cb, "(i)", info->index);
-
-    if (self->threadable)
-        PyGILState_Release(gstate);
 }
 
 static void m_pa_card_changed_cb(pa_context *c,                                         
@@ -732,18 +666,11 @@ static void m_pa_card_changed_cb(pa_context *c,
         return;                                                                     
                                                                                     
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;             
-    PyGILState_STATE gstate;
-
-    if (self->threadable) 
-        gstate = PyGILState_Ensure();
 
     m_pa_cardlist_cb(c, info, eol, self);
 
     if (self->card_changed_cb)                                                          
         PyEval_CallFunction(self->card_changed_cb, "(i)", info->index);             
-                                                                               
-    if (self->threadable)
-        PyGILState_Release(gstate);                                                 
 }
 
 static void m_pa_removed_event_cb(pa_context *c,
@@ -752,16 +679,9 @@ static void m_pa_removed_event_cb(pa_context *c,
                                   DeepinPulseAudioObject *this)
 {
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) this;
-    PyGILState_STATE gstate;
-   
-    if (self->threadable) 
-        gstate = PyGILState_Ensure();
     
     if (callback) 
         PyEval_CallFunction(callback, "(i)", idx);
-    
-    if (self->threadable)
-        PyGILState_Release(gstate);
 }
 
 static void m_pa_context_subscribe_cb(pa_context *c,                           
@@ -773,10 +693,6 @@ static void m_pa_context_subscribe_cb(pa_context *c,
         return;
     
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
-    PyGILState_STATE gstate;
-
-    if (self->threadable) 
-        gstate = PyGILState_Ensure();
 
     switch (t & PA_SUBSCRIPTION_EVENT_FACILITY_MASK) {                          
         case PA_SUBSCRIPTION_EVENT_SINK:
@@ -944,9 +860,6 @@ static void m_pa_context_subscribe_cb(pa_context *c,
             }
             break;
     }
-
-    if (self->threadable)
-        PyGILState_Release(gstate);
 }
 
 static void m_context_state_cb(pa_context *c, void *userdata) 
@@ -955,11 +868,6 @@ static void m_context_state_cb(pa_context *c, void *userdata)
         return;
 
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;                         
-    PyGILState_STATE gstate;
-
-    if (self->threadable) 
-        gstate = PyGILState_Ensure();
-    
     pa_operation *pa_op = NULL;
 
     switch (pa_context_get_state(c)) {                                          
@@ -1001,27 +909,6 @@ static void m_context_state_cb(pa_context *c, void *userdata)
             printf("pa_context terminated\n");            
             return;                                                             
     }
-
-    if (self->threadable)
-        PyGILState_Release(gstate);
-}
-
-static PyObject *m_set_threadable(DeepinPulseAudioObject *self, PyObject *args) 
-{
-    PyObject *threadable = NULL;
-
-    if (!PyArg_ParseTuple(args, "O", &threadable)) {
-        ERROR("invalid arguments to set_threadable");
-        return NULL;
-    }
-
-    if (!PyBool_Check(threadable)) 
-        RETURN_FALSE;
-
-    if (threadable == Py_True)
-        self->threadable = 1;
-    else
-        self->threadable = 0;
 }
 
 static PyObject *m_connect_to_pulse(DeepinPulseAudioObject *self) 
@@ -2131,10 +2018,7 @@ static void m_pa_server_info_cb(pa_context *c,
         return;
     
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
-    PyGILState_STATE gstate;
-
-    if (self->threadable)
-        gstate = PyGILState_Ensure();
+    
     PyDict_SetItemString(self->server_info,
                          "user_name",
                          STRING(i->user_name));
@@ -2158,8 +2042,6 @@ static void m_pa_server_info_cb(pa_context *c,
                          "cookie",
                          INT(i->cookie));
 
-    if (self->threadable)
-        PyGILState_Release(gstate);
 }
 
 static void m_pa_cardlist_cb(pa_context *c,
@@ -2171,10 +2053,6 @@ static void m_pa_cardlist_cb(pa_context *c,
         return;
 
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
-    PyGILState_STATE gstate;
-
-    if (self->threadable)
-        gstate = PyGILState_Ensure();
 
     PyObject *card_dict = NULL;         // a dict save the card info
     PyObject *profile_list = NULL;      // card_profile_info list
@@ -2286,13 +2164,9 @@ static void m_pa_cardlist_cb(pa_context *c,
 
     key = INT(i->index);
     PyDict_SetItem(self->card_devices, key, card_dict);
-    /*Py_XDECREF(key);*/
 
     if (self->get_cards_cb)
         PyEval_CallFunction(self->get_cards_cb, "(i)", i->index);
-
-    if (self->threadable)
-        PyGILState_Release(gstate);
 }
 
 static void m_pa_sinklist_cb(pa_context *c, 
@@ -2304,10 +2178,6 @@ static void m_pa_sinklist_cb(pa_context *c,
         return;
     
     DeepinPulseAudioObject *self = userdata;
-    PyGILState_STATE gstate;
-    
-    if (self->threadable) 
-        gstate = PyGILState_Ensure();
 
     pa_sink_port_info **ports  = NULL;                                          
     pa_sink_port_info *port = NULL;        
@@ -2391,9 +2261,6 @@ static void m_pa_sinklist_cb(pa_context *c,
                                  "mute", PyBool_FromLong(l->mute),
                                  "ports", port_list,
                                  "proplist", prop_dict));    
-
-    if (self->threadable)
-        PyGILState_Release(gstate);
 }                   
 
 // See above.  This callback is pretty much identical to the previous
@@ -2406,10 +2273,6 @@ static void m_pa_sourcelist_cb(pa_context *c,
         return;
 
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
-    PyGILState_STATE gstate;
-
-    if (self->threadable) 
-        gstate = PyGILState_Ensure();
     
     pa_source_port_info **ports = NULL;                                         
     pa_source_port_info *port = NULL;      
@@ -2498,9 +2361,6 @@ static void m_pa_sourcelist_cb(pa_context *c,
                                  "mute", PyBool_FromLong(l->mute),
                                  "ports", port_list,
                                  "proplist", prop_dict));    
-
-    if (self->threadable)
-        PyGILState_Release(gstate);
 }                   
 
 static void m_pa_sinkinputlist_info_cb(pa_context *c,
@@ -2512,10 +2372,6 @@ static void m_pa_sinkinputlist_info_cb(pa_context *c,
         return;
 
     DeepinPulseAudioObject *self = userdata;
-    PyGILState_STATE gstate;
-
-    if (self->threadable) 
-        gstate = PyGILState_Ensure();
     
     PyObject *key = NULL;
     PyObject *volume_value = NULL;
@@ -2570,9 +2426,6 @@ static void m_pa_sinkinputlist_info_cb(pa_context *c,
                                  "mute", l->mute,
                                  "has_volume", l->has_volume,
                                  "volume_writable", l->volume_writable));
-
-    if (self->threadable)
-        PyGILState_Release(gstate);
 }
 
 static void m_pa_sourceoutputlist_info_cb(pa_context *c,
@@ -2584,10 +2437,6 @@ static void m_pa_sourceoutputlist_info_cb(pa_context *c,
         return;
 
     DeepinPulseAudioObject *self = userdata;
-    PyGILState_STATE gstate;
-
-    if (self->threadable) 
-        gstate = PyGILState_Ensure();
     
     PyObject *key = NULL;
     PyObject *volume_value = NULL;
@@ -2642,7 +2491,4 @@ static void m_pa_sourceoutputlist_info_cb(pa_context *c,
                                  "mute", l->mute,
                                  "has_volume", l->has_volume,
                                  "volume_writable", l->volume_writable));
-
-    if (self->threadable) 
-        PyGILState_Release(gstate);
 }

@@ -27,6 +27,7 @@ def value_changed(widget):
 
 def destroy(*args):
     """ Callback function that is activated when the program is destoyed """
+    pypulse.PULSE.delete()
     gtk.main_quit()
 
 window = gtk.Window(gtk.WINDOW_TOPLEVEL)

@@ -32,7 +32,6 @@ MAX_VOLUME_VALUE = deepin_pulseaudio.VOLUME_UI_MAX
 NORMAL_VOLUME_VALUE = deepin_pulseaudio.VOLUME_NORM
 
 PULSE = deepin_pulseaudio.new()
-PULSE.set_threadable(True)
 PULSE.connect_to_pulse()
 
 def get_volume_balance(channel_num, volume_list, channel_list):
