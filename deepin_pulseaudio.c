@@ -892,7 +892,6 @@ static void m_context_state_cb(pa_context *c, void *userdata)
                 return;                                                         
             }                                                                   
             pa_operation_unref(pa_op);
-            m_get_devices(self);
             break;
                                                                                 
         case PA_CONTEXT_FAILED:                                                 
@@ -908,6 +907,29 @@ static void m_context_state_cb(pa_context *c, void *userdata)
         default:        
             printf("pa_context terminated\n");            
             return;                                                             
+    }
+}
+
+static void m_pa_state_cb(pa_context *c, void *userdata) {                               
+    pa_context_state_t state;                                               
+    int *pa_ready = userdata;                                               
+                                                                                
+    state = pa_context_get_state(c);                                        
+    switch (state) {                                                       
+        // There are just here for reference                            
+        case PA_CONTEXT_UNCONNECTED:                                    
+        case PA_CONTEXT_CONNECTING:                                     
+        case PA_CONTEXT_AUTHORIZING:                                    
+        case PA_CONTEXT_SETTING_NAME:                                   
+        default:                                                        
+            break;                                                  
+        case PA_CONTEXT_FAILED:                                         
+        case PA_CONTEXT_TERMINATED:                                     
+            *pa_ready = 2;                                          
+            break;                                                  
+        case PA_CONTEXT_READY:                                          
+            *pa_ready = 1;                                          
+            break;                                                  
     }
 }
 
@@ -1307,13 +1329,19 @@ static PyObject *m_get_cards(DeepinPulseAudioObject *self)
     }
 }
 
-
 /* http://freedesktop.org/software/pulseaudio/doxygen/introspect.html#sinksrc_subsec */
 static PyObject *m_get_devices(DeepinPulseAudioObject *self) 
 {
-    pa_operation *pa_op = NULL;                                                        
+    // Define our pulse audio loop and connection variables                     
+    pa_mainloop *pa_ml;                                                         
+    pa_mainloop_api *pa_mlapi;                                                  
+    pa_context *pa_ctx;
+    pa_operation *pa_op;                                                        
+                                                                                
+    // We'll need these state variables to keep track of our requests           
+    int state = 0;                                                              
+    int pa_ready = 0;                                                           
 
-    /* FIXME: it is not suitable to place here
     PyDict_Clear(self->server_info);
     PyDict_Clear(self->card_devices);
 
@@ -1331,32 +1359,132 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
     PyDict_Clear(self->output_volume);
     PyDict_Clear(self->playback_streams);
     PyDict_Clear(self->record_stream);
-    */
 
-    pa_op = pa_context_get_sink_info_list(self->pa_ctx, m_pa_sinklist_cb, self); 
-    if (!pa_op) {
-        printf("pa_context_get_sink_info_list() failed\n");
-        RETURN_FALSE;
+    // Create a mainloop API and connection to the default server               
+    pa_ml = pa_mainloop_new();                                                  
+    pa_mlapi = pa_mainloop_get_api(pa_ml);                                      
+    pa_ctx = pa_context_new(pa_mlapi, PACKAGE);       
+                                                                                
+    // This function connects to the pulse server                               
+    pa_context_connect(pa_ctx, NULL, 0, NULL);
+
+    // This function defines a callback so the server will tell us it's state.  
+    // Our callback will wait for the state to be ready.  The callback will     
+    // modify the variable to 1 so we know when we have a connection and it's   
+    // ready.                                                                   
+    // If there's an error, the callback will set pa_ready to 2                 
+    pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);              
+                                                                                
+    // Now we'll enter into an infinite loop until we get the data we receive   
+    // or if there's an error                                                   
+    for (;;) {                                                                  
+        // We can't do anything until PA is ready, so just iterate the mainloop 
+        // and continue                                                         
+        if (pa_ready == 0) {                                                    
+            pa_mainloop_iterate(pa_ml, 1, NULL);                                
+            continue;                                                           
+        }                                                                       
+        // We couldn't get a connection to the server, so exit out              
+        if (pa_ready == 2) {                                                    
+            pa_context_disconnect(pa_ctx);                                      
+            pa_context_unref(pa_ctx);
+            pa_mainloop_free(pa_ml);                                            
+            Py_INCREF(Py_False);                                                    
+            return Py_False;     
+        }                                                                       
+        // At this point, we're connected to the server and ready to make
+        // requests                                                             
+        switch (state) {                                                        
+            // State 0: we haven't done anything yet                            
+            case 0:                                                             
+                // This sends an operation to the server.  pa_sinklist_info is  
+                // our callback function and a pointer to our devicelist will   
+                // be passed to the callback The operation ID is stored in the  
+                // pa_op variable                                               
+                pa_op = pa_context_get_sink_info_list(pa_ctx,                   
+                        m_pa_sinklist_cb,                                         
+                        self);                                                      
+                                                                                
+                // Update state for next iteration through the loop             
+                state++;                                                        
+                break;                                                          
+            case 1:                                                             
+                // Now we wait for our operation to complete.  When it's        
+                // complete our pa_output_devices is filled out, and we move 
+                // along to the next state                                      
+                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {       
+                    pa_operation_unref(pa_op);                                  
+                                                                                
+                    // Now we perform another operation to get the source       
+                    // (input device) list just like before.  This time we pass 
+                    // a pointer to our input structure                         
+                    pa_op = pa_context_get_source_info_list(pa_ctx,             
+                            m_pa_sourcelist_cb,                                   
+                            self);                                                  
+                    // Update the state so we know what to do next              
+                    state++;                                                    
+                }                                                               
+                break;                                                          
+            case 2:                                                             
+                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
+                    pa_operation_unref(pa_op);
+                    // Now wo perform another operation to get the card list.
+                    pa_op = pa_context_get_card_info_list(pa_ctx,
+                            m_pa_cardlist_cb, self);
+                    state++;
+                }
+                break;
+            case 3:
+                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
+                    pa_operation_unref(pa_op);
+                    // Now to get the server info
+                    pa_op = pa_context_get_server_info(pa_ctx,
+                            m_pa_server_info_cb, self);
+                    state++;
+                }
+                break;
+            case 4:
+                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
+                    pa_operation_unref(pa_op);
+                    // Now to get the server info
+                    pa_op = pa_context_get_sink_input_info_list(pa_ctx,
+                            m_pa_sinkinputlist_info_cb, self);
+                    state++;
+                }
+                break;
+            case 5:
+                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
+                    pa_operation_unref(pa_op);
+                    // Now to get the server info
+                    pa_op = pa_context_get_source_output_info_list(pa_ctx,
+                            m_pa_sourceoutputlist_info_cb, self);
+                    state++;
+                }
+                break;
+            case 6:
+                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {       
+                    // Now we're done, clean up and disconnect and return       
+                    pa_operation_unref(pa_op);                                  
+                    pa_context_disconnect(pa_ctx);                              
+                    pa_context_unref(pa_ctx);                                   
+                    pa_mainloop_free(pa_ml);
+                    Py_INCREF(Py_True);                                                    
+                    return Py_True;     
+                }                                                               
+                break;                                                          
+            default:                                                            
+                // We should never see this state                               
+                Py_INCREF(Py_False);                                                    
+                return Py_False;     
+        }                               
+        // Iterate the main loop and go again.  The second argument is whether  
+        // or not the iteration should block until something is ready to be     
+        // done.  Set it to zero for non-blocking.                              
+        pa_mainloop_iterate(pa_ml, 1, NULL);                                    
     }
 
-    pa_operation_unref(pa_op);                                  
-                                                                                
-    pa_op = pa_context_get_source_info_list(self->pa_ctx, m_pa_sourcelist_cb, self);
-    pa_operation_unref(pa_op);
-    
-    pa_op = pa_context_get_card_info_list(self->pa_ctx, m_pa_cardlist_cb, self);
-    pa_operation_unref(pa_op);
-                    
-    pa_op = pa_context_get_server_info(self->pa_ctx, m_pa_server_info_cb, self);
-    pa_operation_unref(pa_op);
-    
-    pa_op = pa_context_get_sink_input_info_list(self->pa_ctx, m_pa_sinkinputlist_info_cb, self);
-    pa_operation_unref(pa_op);
-    
-    pa_op = pa_context_get_source_output_info_list(self->pa_ctx, m_pa_sourceoutputlist_info_cb, self);
-    pa_operation_unref(pa_op);
-
-    RETURN_TRUE;
+    Py_INCREF(Py_True);                                                    
+    return Py_True;             
 }
 
 static PyObject *m_get_output_devices(DeepinPulseAudioObject *self) 
