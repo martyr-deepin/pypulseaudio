@@ -33,6 +33,7 @@ NORMAL_VOLUME_VALUE = deepin_pulseaudio.VOLUME_NORM
 
 PULSE = deepin_pulseaudio.new()
 PULSE.connect_to_pulse()
+PULSE.get_devices()
 
 def get_volume_balance(channel_num, volume_list, channel_list):
     return deepin_pulseaudio.volume_get_balance(channel_num, volume_list, channel_list)
