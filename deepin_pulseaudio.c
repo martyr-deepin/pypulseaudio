@@ -522,21 +522,16 @@ static void m_pa_sink_changed_cb(pa_context *c,
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
     PyGILState_STATE gstate;
 
-    if (self->threadable) { 
+    if (self->threadable) 
         gstate = PyGILState_Ensure();
-        printf("DEBUG self->pa_ml %d\n", self->pa_ml);
-        //pa_threaded_mainloop_lock(self->pa_ml);
-    }
 
     m_pa_sinklist_cb(c, info, eol, self);
 
     if (self->sink_changed_cb) 
         PyEval_CallFunction(self->sink_changed_cb, "(i)", info->index);
 
-    if (self->threadable) {
-        //pa_threaded_mainloop_unlock(self->pa_ml);
+    if (self->threadable) 
         PyGILState_Release(gstate);
-    }
 }
 
 static void m_pa_source_new_cb(pa_context *c,                               
@@ -751,7 +746,6 @@ static void m_pa_card_changed_cb(pa_context *c,
         PyGILState_Release(gstate);                                                 
 }
 
-// FIXME: it lead seg fault
 static void m_pa_removed_event_cb(pa_context *c,
                                   PyObject *callback,
                                   uint32_t idx,
@@ -2363,7 +2357,6 @@ static void m_pa_sinklist_cb(pa_context *c,
                                  "can_balance", pa_channel_map_can_balance(&l->channel_map),
                                  "channels", l->channel_map.channels,
                                  "map", channel_value));
-    Py_XDECREF(channel_value);
     // ports list
     ports = l->ports;   
     for (i = 0; i < l->n_ports; i++) {                                  
@@ -2381,7 +2374,6 @@ static void m_pa_sinklist_cb(pa_context *c,
                                           active_port->description, 
                                           active_port->available);
         PyDict_SetItem(self->output_active_ports, key, active_port_value);
-        Py_XDECREF(active_port_value);
     } else {
         PyDict_SetItem(self->output_active_ports, key, Py_None);
     }
@@ -2399,8 +2391,6 @@ static void m_pa_sinklist_cb(pa_context *c,
                                  "mute", PyBool_FromLong(l->mute),
                                  "ports", port_list,
                                  "proplist", prop_dict));    
-    Py_XDECREF(key);
-    Py_XDECREF(volume_value);
 
     if (self->threadable)
         PyGILState_Release(gstate);
@@ -2474,7 +2464,6 @@ static void m_pa_sourcelist_cb(pa_context *c,
                                  "can_balance", pa_channel_map_can_balance(&l->channel_map),
                                  "channels", l->channel_map.channels,
                                  "map", channel_value));
-    /*Py_XDECREF(channel_value);   */
     // ports list
     ports = l->ports;                                                   
     for (i = 0; i < l->n_ports; i++) {                                  
@@ -2492,7 +2481,6 @@ static void m_pa_sourcelist_cb(pa_context *c,
                                           active_port->description,         
                                           active_port->available);               
         PyDict_SetItem(self->input_active_ports, key, active_port_value);
-        /*Py_XDECREF(active_port_value);                                       */
     } else {
         PyDict_SetItem(self->input_active_ports, key, Py_None);
     }
@@ -2510,8 +2498,6 @@ static void m_pa_sourcelist_cb(pa_context *c,
                                  "mute", PyBool_FromLong(l->mute),
                                  "ports", port_list,
                                  "proplist", prop_dict));    
-    /*Py_XDECREF(key);*/
-    /*Py_XDECREF(volume_value);*/
 
     if (self->threadable)
         PyGILState_Release(gstate);
@@ -2584,8 +2570,6 @@ static void m_pa_sinkinputlist_info_cb(pa_context *c,
                                  "mute", l->mute,
                                  "has_volume", l->has_volume,
                                  "volume_writable", l->volume_writable));
-    /*Py_XDECREF(channel_value);*/
-    /*Py_XDECREF(volume_value);*/
 
     if (self->threadable)
         PyGILState_Release(gstate);
@@ -2658,8 +2642,6 @@ static void m_pa_sourceoutputlist_info_cb(pa_context *c,
                                  "mute", l->mute,
                                  "has_volume", l->has_volume,
                                  "volume_writable", l->volume_writable));
-    /*Py_XDECREF(channel_value);*/
-    /*Py_XDECREF(volume_value);*/
 
     if (self->threadable) 
         PyGILState_Release(gstate);
