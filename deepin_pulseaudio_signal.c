@@ -274,7 +274,7 @@ static void m_pa_sink_new_cb(pa_context *c,
     DeepinPulseAudioSignalObject *self = (DeepinPulseAudioSignalObject *) userdata;
 
     if (self->sink_new_cb) 
-        PyEval_CallFunction(self->sink_new_cb, "(i)", info->index);
+        PyEval_CallFunction(self->sink_new_cb, "(Oi)", self, info->index);
 }
 
 static void m_pa_sink_changed_cb(pa_context *c, 
@@ -288,8 +288,9 @@ static void m_pa_sink_changed_cb(pa_context *c,
 
     DeepinPulseAudioSignalObject *self = (DeepinPulseAudioSignalObject *) userdata;
 
-    if (self->sink_changed_cb) 
-        PyEval_CallFunction(self->sink_changed_cb, "(i)", info->index);
+    if (self->sink_changed_cb) {
+        PyEval_CallFunction(self->sink_changed_cb, "(Oi)", self, info->index);
+    }
 }
 
 static void m_pa_source_new_cb(pa_context *c,                               
@@ -303,7 +304,7 @@ static void m_pa_source_new_cb(pa_context *c,
     DeepinPulseAudioSignalObject *self = (DeepinPulseAudioSignalObject *) userdata;         
 
     if (self->source_new_cb)                                      
-        PyEval_CallFunction(self->source_new_cb, "(i)", info->index);
+        PyEval_CallFunction(self->source_new_cb, "(Oi)", self, info->index);
 }
 
 static void m_pa_source_changed_cb(pa_context *c,
@@ -317,7 +318,7 @@ static void m_pa_source_changed_cb(pa_context *c,
     DeepinPulseAudioSignalObject *self = (DeepinPulseAudioSignalObject *) userdata;
 
     if (self->source_changed_cb) 
-        PyEval_CallFunction(self->source_changed_cb, "(i)", info->index);
+        PyEval_CallFunction(self->source_changed_cb, "(Oi)", self, info->index);
 }
 
 static void m_pa_sink_input_new_cb(pa_context *c,
@@ -331,7 +332,7 @@ static void m_pa_sink_input_new_cb(pa_context *c,
     DeepinPulseAudioSignalObject *self = (DeepinPulseAudioSignalObject *) userdata;
 
     if (self->sink_input_new_cb) 
-        PyEval_CallFunction(self->sink_input_new_cb, "(i)", info->index);
+        PyEval_CallFunction(self->sink_input_new_cb, "(Oi)", self, info->index);
 }
 
 static void m_pa_sink_input_changed_cb(pa_context *c,                               
@@ -345,7 +346,7 @@ static void m_pa_sink_input_changed_cb(pa_context *c,
     DeepinPulseAudioSignalObject *self = (DeepinPulseAudioSignalObject *) userdata;             
 
     if (self->sink_input_changed_cb)                                                          
-        PyEval_CallFunction(self->sink_input_changed_cb, "(i)", info->index);               
+        PyEval_CallFunction(self->sink_input_changed_cb, "(Oi)", self, info->index);               
 }
 
 static void m_pa_source_output_new_cb(pa_context *c,
@@ -359,7 +360,7 @@ static void m_pa_source_output_new_cb(pa_context *c,
     DeepinPulseAudioSignalObject *self = (DeepinPulseAudioSignalObject *) userdata;
 
     if (self->source_output_new_cb) 
-        PyEval_CallFunction(self->source_output_new_cb, "(i)", info->index);
+        PyEval_CallFunction(self->source_output_new_cb, "(Oi)", self, info->index);
 }
 
 static void m_pa_source_output_changed_cb(pa_context *c,                                
@@ -373,7 +374,7 @@ static void m_pa_source_output_changed_cb(pa_context *c,
     DeepinPulseAudioSignalObject *self = (DeepinPulseAudioSignalObject *) userdata;             
 
     if (self->source_output_changed_cb)                                                 
-        PyEval_CallFunction(self->source_output_changed_cb, "(i)", info->index);    
+        PyEval_CallFunction(self->source_output_changed_cb, "(Oi)", self, info->index);    
 }
 
 static void m_pa_server_new_cb(pa_context *c,
@@ -386,7 +387,7 @@ static void m_pa_server_new_cb(pa_context *c,
     DeepinPulseAudioSignalObject *self = (DeepinPulseAudioSignalObject *) userdata;
 
     if (self->server_new_cb) 
-        PyEval_CallFunction(self->server_new_cb, NULL);
+        PyEval_CallFunction(self->server_new_cb, "O", self);
 }
 
 static void m_pa_server_changed_cb(pa_context *c,                                   
@@ -399,7 +400,7 @@ static void m_pa_server_changed_cb(pa_context *c,
     DeepinPulseAudioSignalObject *self = (DeepinPulseAudioSignalObject *) userdata;             
 
     if (self->server_changed_cb)                                                        
-        PyEval_CallFunction(self->server_changed_cb, NULL);                         
+        PyEval_CallFunction(self->server_changed_cb, "O", self);                         
 }
 
 static void m_pa_card_new_cb(pa_context *c,
@@ -413,7 +414,7 @@ static void m_pa_card_new_cb(pa_context *c,
     DeepinPulseAudioSignalObject *self = (DeepinPulseAudioSignalObject *) userdata;
 
     if (self->card_new_cb) 
-        PyEval_CallFunction(self->card_new_cb, "(i)", info->index);
+        PyEval_CallFunction(self->card_new_cb, "(Oi)", self, info->index);
 }
 
 static void m_pa_card_changed_cb(pa_context *c,                                         
@@ -427,7 +428,7 @@ static void m_pa_card_changed_cb(pa_context *c,
     DeepinPulseAudioSignalObject *self = (DeepinPulseAudioSignalObject *) userdata;             
 
     if (self->card_changed_cb)                                                          
-        PyEval_CallFunction(self->card_changed_cb, "(i)", info->index);             
+        PyEval_CallFunction(self->card_changed_cb, "(Oi)", self, info->index);             
 }
 
 static void m_pa_removed_event_cb(pa_context *c,
@@ -438,7 +439,7 @@ static void m_pa_removed_event_cb(pa_context *c,
     DeepinPulseAudioSignalObject *self = (DeepinPulseAudioSignalObject *) this;
     
     if (callback) 
-        PyEval_CallFunction(callback, "(i)", idx);
+        PyEval_CallFunction(callback, "(Oi)", self, idx);
 }
 
 static void m_pa_context_subscribe_cb(pa_context *c,                           
