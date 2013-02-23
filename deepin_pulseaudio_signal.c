@@ -22,6 +22,7 @@
 
 #include <Python.h>
 #include <pulse/pulseaudio.h>
+#include <pulse/glib-mainloop.h>
 
 #define PACKAGE "Deepin PulseAudio Python Binding"
 
@@ -41,9 +42,14 @@
 typedef struct {
     PyObject_HEAD
     PyObject *dict; /* Python attributes dictionary */
-    pa_threaded_mainloop *pa_ml;
+    pa_glib_mainloop *pa_ml;
+    // TODO: Thank Tanu https://bugs.freedesktop.org/show_bug.cgi?id=61328
+    // it can not use pa_threaded_mainloop for PyGtk GMainLoop
+    // PyEval_CallFunction() is called from the thread created by pa_threaded_mainloop. 
+    // The GMainLoop runs in a different thread, so if PyEval_CallFunction() expects 
+    // to be run in the GMainLoop thread, things will explode!
     pa_context *pa_ctx;
-    pa_mainloop_api* pa_mlapi;
+    pa_mainloop_api *pa_mlapi;
     PyObject *get_cards_cb; /* callback */
     PyObject *sink_new_cb;
     PyObject *sink_changed_cb;
@@ -449,7 +455,7 @@ static void m_pa_context_subscribe_cb(pa_context *c,
 {                                                                               
     if (!c || !userdata) 
         return;
-    
+
     DeepinPulseAudioSignalObject *self = (DeepinPulseAudioSignalObject *) userdata;
 
     switch (t & PA_SUBSCRIPTION_EVENT_FACILITY_MASK) {                          
@@ -537,8 +543,7 @@ static void m_context_state_cb(pa_context *c, void *userdata)
             self->pa_ctx = NULL;                                                     
                                                                                 
             printf("Connection failed, attempting reconnect\n");          
-            sleep(13);
-            m_connect_to_pulse(self);               
+            g_timeout_add_seconds(13, m_connect_to_pulse, self);               
             return;                                                             
                                                                                 
         case PA_CONTEXT_TERMINATED:                                             
@@ -579,21 +584,19 @@ static DeepinPulseAudioSignalObject *m_new(PyObject *dummy, PyObject *args)
     if (!self)
         return NULL;
 
-    self->pa_ml = pa_threaded_mainloop_new();                                   
+    self->pa_ml = pa_glib_mainloop_new(g_main_context_default());
     if (!self->pa_ml) {                                                         
-        ERROR("pa_threaded_mainloop_new() failed");                                  
+        ERROR("pa_glib_mainloop_new() failed");                                  
         m_delete(self);                                                         
         return NULL;                                                            
     }                                                                           
                                                                                 
-    self->pa_mlapi = pa_threaded_mainloop_get_api(self->pa_ml);                 
+    self->pa_mlapi = pa_glib_mainloop_get_api(self->pa_ml);
     if (!self->pa_mlapi) {                                                      
-        ERROR("pa_threaded_mainloop_get_api() failed");                              
+        ERROR("pa_glib_mainloop_get_api() failed");                              
         m_delete(self);                                                         
         return NULL;                                                            
     }                                                                           
-                                                                                
-    pa_threaded_mainloop_start(self->pa_ml);
 
     return self;
 }
@@ -607,8 +610,7 @@ static PyObject *m_delete(DeepinPulseAudioSignalObject *self)
     }
 
     if (self->pa_ml) {
-        pa_threaded_mainloop_stop(self->pa_ml);
-        pa_threaded_mainloop_free(self->pa_ml);
+        pa_glib_mainloop_free(self->pa_ml);
         self->pa_ml = NULL;
     }
 

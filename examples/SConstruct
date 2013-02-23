@@ -1,5 +1,7 @@
 env = Environment(CCFLAGS='-g')
-env.ParseConfig('pkg-config --cflags --libs libpulse')
+env.ParseConfig('pkg-config --cflags --libs gtk+-2.0 libpulse')
+
+env.Program('cgtk.c')
 
 env.Program('pulsedevicelist.c')
 

@@ -22,31 +22,18 @@
 
 import gtk
 import pypulse
-from deepin_utils.process import run_command
+
+adjust = gtk.Adjustment(value=60000, lower=0, upper=100000, step_incr=1, page_incr=1)
+
+def sink_changed(handle, index):
+    print "DEBUG sink_changed", handle, index
+    #output_volume = pypulse.PULSE.get_output_volume()
+    #adjust.value = output_volume[1][0]
 
 def value_changed(widget):
     print "DEBUG value_changed", widget.value
-    # TODO: 直接调用命令行
-    # 改变输出音量, 重点需要测试set_xxx, 若修正了FIXME的BUG, 请注释掉该方法
-    run_command("pacmd set-sink-volume %d %d" % (1, widget.value * 1000))
-    
-    # FIXME: 多次释放指针对象错误 :(
-    # *** glibc detected *** python: double free or corruption (fasttop): 0x0000000002fb5860 ***
-    '''
-    current_sink = pypulse.get_fallback_sink_index()                        
-    if current_sink is None:                                                
-        print "DEBUG current_sink is None"
-        return                                                              
-    volume_list = pypulse.PULSE.get_output_volume_by_index(current_sink)       
-    channel_list = pypulse.PULSE.get_output_channels_by_index(current_sink) 
-    if not volume_list or not channel_list:                                 
-        print "DEBUG volume_list or channel_list is None"
-        return                                                              
-    balance = pypulse.get_volume_balance(channel_list['channels'], volume_list, channel_list['map'])
-    volume = int(widget.value / 100.0 * pypulse.NORMAL_VOLUME_VALUE)
-    print "DEBUG speaker volumel set:", balance, volume                           
-    pypulse.PULSE.set_output_volume_with_balance(current_sink, volume, balance)
-    '''
+    # TODO: you can changed the index (here is 1) based on your devices
+    pypulse.PULSE.set_output_volume(1, (widget.value, widget.value))
 
 def destroy(*args):
     """ Callback function that is activated when the program is destoyed """
@@ -57,11 +44,15 @@ window.set_size_request(300, 200)
 window.connect("destroy", destroy)
 window.set_border_width(10)
 
-# TODO: 测试通过 :)
-print pypulse.PULSE.get_cards()
+# TODO: sink-changed callback
+pypulse.PULSE_SIGNAL.connect("sink-changed", sink_changed)
 
-adjust = gtk.Adjustment(value=90, lower=0, upper=120, step_incr=1, page_incr=1)
 adjust.connect("value-changed", value_changed)
+
+output_volume = pypulse.PULSE.get_output_volume()
+# TODO: you can change the index (here is 1) based on your devices
+adjust.value = output_volume[1][0]
+
 hscale = gtk.HScale(adjust)
 window.add(hscale)
 hscale.show()
