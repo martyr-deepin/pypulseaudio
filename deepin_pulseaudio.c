@@ -2501,8 +2501,12 @@ static void m_pa_sink_new_cb(pa_context *c,
 
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
 
-    if (self->sink_new_cb) 
+    if (self->sink_new_cb) {
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
         PyEval_CallFunction(self->sink_new_cb, "(Oi)", self, info->index);
+        PyGILState_Release(gstate);
+    }
 }
 
 static void m_pa_sink_changed_cb(pa_context *c, 
@@ -2518,11 +2522,9 @@ static void m_pa_sink_changed_cb(pa_context *c,
 
     if (self->sink_changed_cb) {
         PyGILState_STATE gstate;
-        /*printf("sink changed callback %x, %x, %d\n", self, self->sink_changed_cb, info->index);*/
         gstate = PyGILState_Ensure();
         PyEval_CallFunction(self->sink_changed_cb, "(Oi)", self, info->index);
         PyGILState_Release(gstate);
-        /*printf("sink changed callback over \n");*/
     }
 }
 
@@ -2536,8 +2538,12 @@ static void m_pa_source_new_cb(pa_context *c,
 
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;         
 
-    if (self->source_new_cb)                                      
+    if (self->source_new_cb) {
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
         PyEval_CallFunction(self->source_new_cb, "(Oi)", self, info->index);
+        PyGILState_Release(gstate);
+    }
 }
 
 static void m_pa_source_changed_cb(pa_context *c,
@@ -2550,8 +2556,12 @@ static void m_pa_source_changed_cb(pa_context *c,
 
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
 
-    if (self->source_changed_cb) 
+    if (self->source_changed_cb) {
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
         PyEval_CallFunction(self->source_changed_cb, "(Oi)", self, info->index);
+        PyGILState_Release(gstate);
+    }
 }
 
 static void m_pa_sink_input_new_cb(pa_context *c,
@@ -2564,8 +2574,12 @@ static void m_pa_sink_input_new_cb(pa_context *c,
 
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
 
-    if (self->sink_input_new_cb) 
+    if (self->sink_input_new_cb) {
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
         PyEval_CallFunction(self->sink_input_new_cb, "(Oi)", self, info->index);
+        PyGILState_Release(gstate);
+    }
 }
 
 static void m_pa_sink_input_changed_cb(pa_context *c,                               
@@ -2578,8 +2592,12 @@ static void m_pa_sink_input_changed_cb(pa_context *c,
                                                                                     
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;             
 
-    if (self->sink_input_changed_cb)                                                          
+    if (self->sink_input_changed_cb) {
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
         PyEval_CallFunction(self->sink_input_changed_cb, "(Oi)", self, info->index);               
+        PyGILState_Release(gstate);
+    }
 }
 
 static void m_pa_source_output_new_cb(pa_context *c,
@@ -2592,8 +2610,12 @@ static void m_pa_source_output_new_cb(pa_context *c,
 
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
 
-    if (self->source_output_new_cb) 
+    if (self->source_output_new_cb) {
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
         PyEval_CallFunction(self->source_output_new_cb, "(Oi)", self, info->index);
+        PyGILState_Release(gstate);
+    }
 }
 
 static void m_pa_source_output_changed_cb(pa_context *c,                                
@@ -2606,8 +2628,12 @@ static void m_pa_source_output_changed_cb(pa_context *c,
                                                                                     
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;             
 
-    if (self->source_output_changed_cb)                                                 
+    if (self->source_output_changed_cb) {
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
         PyEval_CallFunction(self->source_output_changed_cb, "(Oi)", self, info->index);    
+        PyGILState_Release(gstate);
+    }
 }
 
 static void m_pa_server_new_cb(pa_context *c,
@@ -2619,8 +2645,12 @@ static void m_pa_server_new_cb(pa_context *c,
 
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
 
-    if (self->server_new_cb) 
+    if (self->server_new_cb) {
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
         PyEval_CallFunction(self->server_new_cb, "O", self);
+        PyGILState_Release(gstate);
+    }
 }
 
 static void m_pa_server_changed_cb(pa_context *c,                                   
@@ -2632,8 +2662,12 @@ static void m_pa_server_changed_cb(pa_context *c,
                                                                                     
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;             
 
-    if (self->server_changed_cb)                                                        
+    if (self->server_changed_cb) {
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
         PyEval_CallFunction(self->server_changed_cb, "O", self);                         
+        PyGILState_Release(gstate);
+    }
 }
 
 static void m_pa_card_new_cb(pa_context *c,
@@ -2646,8 +2680,12 @@ static void m_pa_card_new_cb(pa_context *c,
 
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
 
-    if (self->card_new_cb) 
+    if (self->card_new_cb) {
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
         PyEval_CallFunction(self->card_new_cb, "(Oi)", self, info->index);
+        PyGILState_Release(gstate);
+    }
 }
 
 static void m_pa_card_changed_cb(pa_context *c,                                         
@@ -2660,8 +2698,12 @@ static void m_pa_card_changed_cb(pa_context *c,
                                                                                     
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;             
 
-    if (self->card_changed_cb)                                                          
+    if (self->card_changed_cb) {
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
         PyEval_CallFunction(self->card_changed_cb, "(Oi)", self, info->index);             
+        PyGILState_Release(gstate);
+    }
 }
 
 static void m_pa_removed_event_cb(pa_context *c,
@@ -2671,8 +2713,12 @@ static void m_pa_removed_event_cb(pa_context *c,
 {
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) this;
     
-    if (callback) 
+    if (callback) {
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
         PyEval_CallFunction(callback, "(Oi)", self, idx);
+        PyGILState_Release(gstate);
+    }
 }
 
 static void m_pa_context_subscribe_cb(pa_context *c,                           
