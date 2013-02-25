@@ -46,7 +46,7 @@ window.connect("destroy", destroy)
 window.set_border_width(10)
 
 # TODO: sink-changed callback
-pypulse.PULSE_SIGNAL.connect("sink-changed", sink_changed)
+pypulse.PULSE.connect("sink-changed", sink_changed)
 
 adjust.connect("value-changed", value_changed)
 

@@ -22,6 +22,7 @@
 
 #include <Python.h>
 #include <pulse/pulseaudio.h>
+#include <pulse/glib-mainloop.h>
 
 #define PACKAGE "Deepin PulseAudio Python Binding"
 
@@ -41,6 +42,27 @@
 typedef struct {
     PyObject_HEAD
     PyObject *dict; /* Python attributes dictionary */
+    pa_glib_mainloop *pa_ml;
+    pa_context *pa_ctx;
+    pa_mainloop_api *pa_mlapi;
+    PyObject *sink_new_cb; /* callback */                                       
+    PyObject *sink_changed_cb;                                                  
+    PyObject *sink_removed_cb;                                                  
+    PyObject *source_new_cb;                                                    
+    PyObject *source_changed_cb;                                                
+    PyObject *source_removed_cb;                                                
+    PyObject *card_new_cb;                                                      
+    PyObject *card_changed_cb;                                                  
+    PyObject *card_removed_cb;                                                  
+    PyObject *server_new_cb;                                                    
+    PyObject *server_changed_cb;                                                
+    PyObject *server_removed_cb;                                                
+    PyObject *sink_input_new_cb;                                                
+    PyObject *sink_input_changed_cb;                                            
+    PyObject *sink_input_removed_cb;                                            
+    PyObject *source_output_new_cb;                                             
+    PyObject *source_output_changed_cb;                                         
+    PyObject *source_output_removed_cb;
     PyObject *server_info;  /* data */
     PyObject *card_devices;
     PyObject *input_devices;
@@ -63,6 +85,11 @@ static PyObject *m_deepin_pulseaudio_object_constants = NULL;
 static PyTypeObject *m_DeepinPulseAudio_Type = NULL;
 
 static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object();
+static void m_pa_context_subscribe_cb(pa_context *c,                            
+                                      pa_subscription_event_type_t t,           
+                                      uint32_t idx,                             
+                                      void *userdata);                          
+static void m_context_state_cb(pa_context *c, void *userdata);
 static DeepinPulseAudioObject *m_new(PyObject *self, PyObject *args);
 static PyObject *m_pa_volume_get_balance(PyObject *self, PyObject *args);
 
@@ -148,9 +175,14 @@ static PyObject *m_set_input_volume_with_balance(DeepinPulseAudioObject *self, P
 static PyObject *m_set_fallback_sink(DeepinPulseAudioObject *self, PyObject *args);
 static PyObject *m_set_fallback_source(DeepinPulseAudioObject *self, PyObject *args);
 
+static PyObject *m_connect_to_pulse(DeepinPulseAudioObject *self);        
+static PyObject *m_connect(DeepinPulseAudioObject *self, PyObject *args);
+
 static PyMethodDef deepin_pulseaudio_object_methods[] = 
 {
     {"delete", m_delete, METH_NOARGS, "Deepin PulseAudio destruction"}, 
+    {"connect_to_pulse", m_connect_to_pulse, METH_NOARGS, "Connect to PulseAudio"},
+    {"connect", m_connect, METH_VARARGS, "Connect signal callback"},
     {"get_server_info", m_get_server_info, METH_NOARGS, "Get server info"},
     {"get_cards", m_get_cards, METH_NOARGS, "Get card list"}, 
     {"get_devices", m_get_devices, METH_NOARGS, "Get device list"}, 
@@ -423,6 +455,29 @@ static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object()
     self->playback_streams = NULL;
     self->record_stream = NULL;
 
+    self->pa_ml = NULL;                                                         
+    self->pa_ctx = NULL;                                                        
+    self->pa_mlapi = NULL;                                                      
+                                                                                
+    self->sink_new_cb = NULL;                                                   
+    self->sink_changed_cb = NULL;                                               
+    self->sink_removed_cb = NULL;                                               
+    self->source_new_cb = NULL;                                                 
+    self->source_changed_cb = NULL;                                             
+    self->source_removed_cb = NULL;                                             
+    self->card_new_cb = NULL;                                                   
+    self->card_changed_cb = NULL;                                               
+    self->card_removed_cb = NULL;                                               
+    self->server_new_cb = NULL;                                                 
+    self->server_changed_cb = NULL;                                             
+    self->server_removed_cb = NULL;                                             
+    self->sink_input_new_cb = NULL;                                             
+    self->sink_input_changed_cb = NULL;                                         
+    self->sink_input_removed_cb = NULL;                                         
+    self->source_output_new_cb = NULL;                                          
+    self->source_output_changed_cb = NULL;                                      
+    self->source_output_removed_cb = NULL;
+
     return self;
 }
 
@@ -567,6 +622,20 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
         return NULL;
     }
 
+    self->pa_ml = pa_glib_mainloop_new(g_main_context_default());               
+    if (!self->pa_ml) {                                                         
+        ERROR("pa_glib_mainloop_new() failed");                                 
+        m_delete(self);                                                         
+        return NULL;                                                            
+    }                                                                           
+                                                                                
+    self->pa_mlapi = pa_glib_mainloop_get_api(self->pa_ml);                     
+    if (!self->pa_mlapi) {                                                      
+        ERROR("pa_glib_mainloop_get_api() failed");                             
+        m_delete(self);                                                         
+        return NULL;                                                            
+    }
+
     return self;
 }
 
@@ -632,6 +701,17 @@ static PyObject *m_delete(DeepinPulseAudioObject *self)
     if (self->input_devices) {
         Py_XDECREF(self->input_devices);
         self->input_devices = NULL;
+    }
+
+    if (self->pa_ctx) {                                                         
+        pa_context_disconnect(self->pa_ctx);                                    
+        pa_context_unref(self->pa_ctx);                                         
+        self->pa_ctx = NULL;                                                    
+    }                                                                           
+                                                                                
+    if (self->pa_ml) {                                                          
+        pa_glib_mainloop_free(self->pa_ml);                                     
+        self->pa_ml = NULL;                                                     
     }
 
     Py_INCREF(Py_None);
@@ -2409,4 +2489,439 @@ static void m_pa_sourceoutputlist_info_cb(pa_context *c,
                                  "mute", l->mute,
                                  "has_volume", l->has_volume,
                                  "volume_writable", l->volume_writable));
+}
+
+static void m_pa_sink_new_cb(pa_context *c,
+                             const pa_sink_info *info,
+                             int eol,
+                             void *userdata)
+{
+    if (!c || !info || eol > 0 || !userdata) 
+        return;
+
+    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
+
+    if (self->sink_new_cb) 
+        PyEval_CallFunction(self->sink_new_cb, "(Oi)", self, info->index);
+}
+
+static void m_pa_sink_changed_cb(pa_context *c, 
+                                 const pa_sink_info *info, 
+                                 int eol, 
+                                 void *userdata) 
+{
+    if (!c || !info || eol > 0 || !userdata) {
+        return;
+    }
+
+    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
+
+    if (self->sink_changed_cb) {
+        PyEval_CallFunction(self->sink_changed_cb, "(Oi)", self, info->index);
+    }
+}
+
+static void m_pa_source_new_cb(pa_context *c,                               
+                                 const pa_source_info *info,                    
+                                 int eol,                                       
+                                 void *userdata)                                
+{                                                                               
+    if (!c || !info || eol > 0 || !userdata)                                    
+        return;                                                                 
+
+    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;         
+
+    if (self->source_new_cb)                                      
+        PyEval_CallFunction(self->source_new_cb, "(Oi)", self, info->index);
+}
+
+static void m_pa_source_changed_cb(pa_context *c,
+                                 const pa_source_info *info,
+                                 int eol,
+                                 void *userdata)
+{
+    if (!c || !info || eol > 0 || !userdata) 
+        return;
+
+    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
+
+    if (self->source_changed_cb) 
+        PyEval_CallFunction(self->source_changed_cb, "(Oi)", self, info->index);
+}
+
+static void m_pa_sink_input_new_cb(pa_context *c,
+                                   const pa_sink_input_info *info,
+                                   int eol,
+                                   void *userdata)
+{
+    if (!c || !info || eol > 0 || !userdata) 
+        return;
+
+    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
+
+    if (self->sink_input_new_cb) 
+        PyEval_CallFunction(self->sink_input_new_cb, "(Oi)", self, info->index);
+}
+
+static void m_pa_sink_input_changed_cb(pa_context *c,                               
+                                       const pa_sink_input_info *info,                
+                                       int eol,                                       
+                                       void *userdata)                                
+{                                                                                   
+    if (!c || !info || eol > 0 || !userdata)                                        
+        return;                                                                     
+                                                                                    
+    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;             
+
+    if (self->sink_input_changed_cb)                                                          
+        PyEval_CallFunction(self->sink_input_changed_cb, "(Oi)", self, info->index);               
+}
+
+static void m_pa_source_output_new_cb(pa_context *c,
+                                        const pa_source_output_info *info,
+                                        int eol,
+                                        void *userdata)
+{
+    if (!c || !info || eol > 0 || !userdata) 
+        return;
+
+    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
+
+    if (self->source_output_new_cb) 
+        PyEval_CallFunction(self->source_output_new_cb, "(Oi)", self, info->index);
+}
+
+static void m_pa_source_output_changed_cb(pa_context *c,                                
+                                          const pa_source_output_info *info,          
+                                          int eol,                                    
+                                          void *userdata)                             
+{                                                                                   
+    if (!c || !info || eol > 0 || !userdata)                                        
+        return;                                                                     
+                                                                                    
+    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;             
+
+    if (self->source_output_changed_cb)                                                 
+        PyEval_CallFunction(self->source_output_changed_cb, "(Oi)", self, info->index);    
+}
+
+static void m_pa_server_new_cb(pa_context *c,
+                                 const pa_server_info *info,
+                                 void *userdata)
+{
+    if (!c || !info || !userdata) 
+        return;
+
+    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
+
+    if (self->server_new_cb) 
+        PyEval_CallFunction(self->server_new_cb, "O", self);
+}
+
+static void m_pa_server_changed_cb(pa_context *c,                                   
+                                 const pa_server_info *info,                    
+                                 void *userdata)                                    
+{                                                                                   
+    if (!c || !info || !userdata)                                                   
+        return;                                                                     
+                                                                                    
+    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;             
+
+    if (self->server_changed_cb)                                                        
+        PyEval_CallFunction(self->server_changed_cb, "O", self);                         
+}
+
+static void m_pa_card_new_cb(pa_context *c,
+                               const pa_card_info *info,
+                               int eol,
+                               void *userdata)
+{
+    if (!c || !info || eol > 0 || !userdata) 
+        return;
+
+    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
+
+    if (self->card_new_cb) 
+        PyEval_CallFunction(self->card_new_cb, "(Oi)", self, info->index);
+}
+
+static void m_pa_card_changed_cb(pa_context *c,                                         
+                               const pa_card_info *info,                            
+                               int eol,                                             
+                               void *userdata)                                      
+{                                                                                   
+    if (!c || !info || eol > 0 || !userdata)                                        
+        return;                                                                     
+                                                                                    
+    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;             
+
+    if (self->card_changed_cb)                                                          
+        PyEval_CallFunction(self->card_changed_cb, "(Oi)", self, info->index);             
+}
+
+static void m_pa_removed_event_cb(pa_context *c,
+                                  PyObject *callback,
+                                  uint32_t idx,
+                                  DeepinPulseAudioObject *this)
+{
+    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) this;
+    
+    if (callback) 
+        PyEval_CallFunction(callback, "(Oi)", self, idx);
+}
+
+static void m_pa_context_subscribe_cb(pa_context *c,                           
+                                      pa_subscription_event_type_t t,          
+                                      uint32_t idx,                            
+                                      void *userdata)                          
+{                                                                               
+    if (!c || !userdata) 
+        return;
+
+    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
+
+    switch (t & PA_SUBSCRIPTION_EVENT_FACILITY_MASK) {                          
+        case PA_SUBSCRIPTION_EVENT_SINK:
+            if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_NEW) {
+                pa_context_get_sink_info_by_index(c, idx, m_pa_sink_new_cb, self);
+            } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
+                pa_context_get_sink_info_by_index(c, idx, m_pa_sink_changed_cb, self);
+            }
+            break;
+        case PA_SUBSCRIPTION_EVENT_SOURCE:
+            if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_NEW) {
+                pa_context_get_source_info_by_index(c, idx, m_pa_source_new_cb, self);
+            } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
+                pa_context_get_source_info_by_index(c, idx, m_pa_source_changed_cb, self);
+            }
+            break;
+        case PA_SUBSCRIPTION_EVENT_SINK_INPUT:
+            if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_NEW) {
+                pa_context_get_sink_input_info(c, idx, m_pa_sink_input_new_cb, self);
+            } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
+                pa_context_get_sink_input_info(c, idx, m_pa_sink_input_changed_cb, self);
+            }
+            break;
+        case PA_SUBSCRIPTION_EVENT_SOURCE_OUTPUT:
+            if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_NEW) {
+                pa_context_get_source_output_info(c, idx, m_pa_source_output_new_cb, self);
+            } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
+                pa_context_get_source_output_info(c, idx, m_pa_source_output_changed_cb, self);
+            }
+            break;
+        case PA_SUBSCRIPTION_EVENT_CLIENT:                                      
+            break;                                                              
+        case PA_SUBSCRIPTION_EVENT_SERVER:
+            if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_NEW) {
+                pa_context_get_server_info(c, m_pa_server_new_cb, self);
+            } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
+                pa_context_get_server_info(c, m_pa_server_changed_cb, self);
+            }
+            break;
+        case PA_SUBSCRIPTION_EVENT_CARD:
+            if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_NEW) {
+                pa_context_get_card_info_by_index(c, idx, m_pa_card_new_cb, self);
+            } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
+                pa_context_get_card_info_by_index(c, idx, m_pa_card_changed_cb, self);
+            }    
+            break;
+    }
+}
+
+static void m_context_state_cb(pa_context *c, void *userdata) 
+{                
+    if (!c || !userdata) 
+        return;
+
+    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;                         
+    pa_operation *pa_op = NULL;
+
+    switch (pa_context_get_state(c)) {                                          
+        case PA_CONTEXT_UNCONNECTED:                                            
+        case PA_CONTEXT_CONNECTING:                                             
+        case PA_CONTEXT_AUTHORIZING:                                            
+        case PA_CONTEXT_SETTING_NAME:                                           
+            break;                                                              
+                                                                                
+        case PA_CONTEXT_READY:                                                
+            pa_context_set_subscribe_callback(c, m_pa_context_subscribe_cb, self);
+
+            if (!(pa_op = pa_context_subscribe(c, (pa_subscription_mask_t)          
+                                           (PA_SUBSCRIPTION_MASK_SINK|          
+                                            PA_SUBSCRIPTION_MASK_SOURCE|        
+                                            PA_SUBSCRIPTION_MASK_SINK_INPUT|    
+                                            PA_SUBSCRIPTION_MASK_SOURCE_OUTPUT| 
+                                            PA_SUBSCRIPTION_MASK_CLIENT|        
+                                            PA_SUBSCRIPTION_MASK_SERVER|        
+                                            PA_SUBSCRIPTION_MASK_CARD), NULL, NULL))) {
+                printf("pa_context_subscribe() failed\n");                 
+                return;                                                         
+            }                                                                   
+            pa_operation_unref(pa_op);
+            break;
+                                                                                
+        case PA_CONTEXT_FAILED:                                                 
+            pa_context_unref(self->pa_ctx);                                          
+            self->pa_ctx = NULL;                                                     
+                                                                                
+            printf("Connection failed, attempting reconnect\n");          
+            g_timeout_add_seconds(13, m_connect_to_pulse, self);               
+            return;                                                             
+                                                                                
+        case PA_CONTEXT_TERMINATED:                                             
+        default:        
+            printf("pa_context terminated\n");            
+            return;                                                             
+    }
+}
+
+static PyObject *m_connect_to_pulse(DeepinPulseAudioObject *self) 
+{
+    self->pa_ctx = pa_context_new(self->pa_mlapi, PACKAGE);
+    if (!self->pa_ctx) {
+        printf("pa_context_new() failed\n");
+        RETURN_FALSE;
+    }
+
+    pa_context_set_state_callback(self->pa_ctx, m_context_state_cb, self);
+
+    if (pa_context_connect(self->pa_ctx, NULL, PA_CONTEXT_NOFAIL, NULL) < 0) {
+        if (pa_context_errno(self->pa_ctx) == PA_ERR_INVALID) {
+            printf("Connection to PulseAudio failed. Automatic retry in 13s\n");
+            RETURN_FALSE;
+        } else {
+            m_delete(self);
+            RETURN_FALSE;
+        }
+    }
+
+    RETURN_TRUE;
+}
+
+static PyObject *m_connect(DeepinPulseAudioObject *self, PyObject *args)         
+{                                                                               
+    char *signal = NULL;                                                         
+    PyObject *callback = NULL;                                                      
+                                                                                
+    if (!PyArg_ParseTuple(args, "sO:set_callback", &signal, &callback)) {             
+        ERROR("invalid arguments to connect");                                  
+        return NULL;                                                            
+    }                                                                           
+                                                                                
+    if (!PyCallable_Check(callback)) {                                              
+        Py_INCREF(Py_False);                                                    
+        return Py_False;                                                        
+    }                                                                           
+
+    if (strcmp(signal, "sink-new") == 0) {                                         
+        Py_XINCREF(callback);                                                       
+        Py_XDECREF(self->sink_new_cb);                                           
+        self->sink_new_cb = callback;
+    }
+
+    if (strcmp(signal, "sink-changed") == 0) {                                         
+        Py_XINCREF(callback);                                                       
+        Py_XDECREF(self->sink_changed_cb);                                           
+        self->sink_changed_cb = callback;
+    }
+
+    if (strcmp(signal, "sink-removed") == 0) {                                         
+        Py_XINCREF(callback);                                                       
+        Py_XDECREF(self->sink_removed_cb);                                           
+        self->sink_removed_cb = callback;
+    }
+
+    if (strcmp(signal, "source-new") == 0) {                                     
+        Py_XINCREF(callback);                                                   
+        Py_XDECREF(self->source_new_cb);                                         
+        self->source_new_cb = callback;                                          
+    }
+    
+    if (strcmp(signal, "source-changed") == 0) {                                     
+        Py_XINCREF(callback);                                                   
+        Py_XDECREF(self->source_changed_cb);                                         
+        self->source_changed_cb = callback;                                          
+    }
+
+    if (strcmp(signal, "source-removed") == 0) {                                     
+        Py_XINCREF(callback);                                                   
+        Py_XDECREF(self->source_removed_cb);                                         
+        self->source_removed_cb = callback;                                          
+    }
+
+    if (strcmp(signal, "card-new") == 0) {                                     
+        Py_XINCREF(callback);                                                   
+        Py_XDECREF(self->card_new_cb);                                         
+        self->card_new_cb = callback;                                          
+    }                                                                           
+                                                                                
+    if (strcmp(signal, "card-changed") == 0) {                                     
+        Py_XINCREF(callback);                                                   
+        Py_XDECREF(self->card_changed_cb);                                         
+        self->card_changed_cb = callback;                                          
+    }                                                                           
+                                                                                
+    if (strcmp(signal, "card-removed") == 0) {                                     
+        Py_XINCREF(callback);                                                   
+        Py_XDECREF(self->card_removed_cb);                                         
+        self->card_removed_cb = callback;                                          
+    }                                                                           
+                                                                                
+
+    if (strcmp(signal, "server-new") == 0) {                                     
+        Py_XINCREF(callback);                                                   
+        Py_XDECREF(self->server_new_cb);                                         
+        self->server_new_cb = callback;                                          
+    }                                                                           
+
+    if (strcmp(signal, "server-changed") == 0) {                                     
+        Py_XINCREF(callback);                                                   
+        Py_XDECREF(self->server_changed_cb);                                         
+        self->server_changed_cb = callback;                                          
+    }                                                                           
+
+    if (strcmp(signal, "server-removed") == 0) {                                     
+        Py_XINCREF(callback);                                                   
+        Py_XDECREF(self->server_removed_cb);                                         
+        self->server_removed_cb = callback;                                          
+    }                                                                           
+
+    if (strcmp(signal, "sink-input-new") == 0) {                                     
+        Py_XINCREF(callback);                                                   
+        Py_XDECREF(self->sink_input_new_cb);                                         
+        self->sink_input_new_cb = callback;                                          
+    }                                                                           
+
+    if (strcmp(signal, "sink-input-changed") == 0) {                                     
+        Py_XINCREF(callback);                                                   
+        Py_XDECREF(self->sink_input_changed_cb);                                         
+        self->sink_input_changed_cb = callback;                                          
+    }                                                                           
+
+    if (strcmp(signal, "sink-input-removed") == 0) {                                     
+        Py_XINCREF(callback);                                                   
+        Py_XDECREF(self->sink_input_removed_cb);                                         
+        self->sink_input_removed_cb = callback;                                          
+    }                                                                           
+
+    if (strcmp(signal, "source-output-new") == 0) {                                     
+        Py_XINCREF(callback);                                                   
+        Py_XDECREF(self->source_output_new_cb);                                         
+        self->source_output_new_cb = callback;                                          
+    }                                                                           
+
+    if (strcmp(signal, "source-output-changed") == 0) {                                     
+        Py_XINCREF(callback);                                                   
+        Py_XDECREF(self->source_output_changed_cb);                                         
+        self->source_output_changed_cb = callback;                                          
+    }                                                                           
+
+    if (strcmp(signal, "source-output-removed") == 0) {                                     
+        Py_XINCREF(callback);                                                   
+        Py_XDECREF(self->source_output_removed_cb);                                         
+        self->source_output_removed_cb = callback;                                          
+    }                                                                           
+
+    Py_INCREF(Py_True);                                                         
+    return Py_True;                                                             
 }

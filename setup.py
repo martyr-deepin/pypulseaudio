@@ -8,17 +8,13 @@ def pkg_config_cflags(pkgs):
     return map(lambda path: path[2::], commands.getoutput('pkg-config --cflags-only-I %s' % (' '.join(pkgs))).split())
 
 deepin_pulseaudio_mod = Extension('deepin_pulseaudio', 
-                libraries = ['pulse'],
-                sources = ['deepin_pulseaudio.c'])
-
-deepin_pulseaudio_signal_mod = Extension('deepin_pulseaudio_signal', 
                 include_dirs = pkg_config_cflags(['glib-2.0']), 
                 libraries = ['pulse', 'pulse-mainloop-glib'], 
-                sources = ['deepin_pulseaudio_signal.c'])
+                sources = ['deepin_pulseaudio.c'])
 
 setup(name='pypulseaudio',
       version='0.1',
-      ext_modules = [deepin_pulseaudio_mod, deepin_pulseaudio_signal_mod],
+      ext_modules = [deepin_pulseaudio_mod],
       description='PulseAudio Python binding.',
       long_description ="""PulseAudio Python binding.""",
       author='Linux Deepin Team',
