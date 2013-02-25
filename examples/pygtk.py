@@ -33,7 +33,8 @@ def sink_changed(handle, index):
 def value_changed(widget):
     print "DEBUG value_changed", widget.value
     # TODO: you can changed the index (here is 1) based on your devices
-    pypulse.PULSE.set_output_volume(1, (widget.value, widget.value))
+    #pypulse.PULSE.set_output_volume(1, (widget.value, widget.value))
+    pypulse.PULSE.set_output_volume_with_balance(1, int(widget.value), 0.0)
 
 def destroy(*args):
     """ Callback function that is activated when the program is destoyed """
