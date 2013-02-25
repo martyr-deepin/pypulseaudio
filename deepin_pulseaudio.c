@@ -2528,6 +2528,40 @@ static void m_pa_sink_changed_cb(pa_context *c,
     }
 }
 
+static void m_pa_sink_removed_cb(DeepinPulseAudioObject *self, uint32_t idx)
+{
+    if (!self) 
+        return;
+
+    PyObject *key = NULL;
+    key = INT(idx);
+    if (self->output_active_ports && PyDict_Contains(self->output_active_ports, key)) {
+        PyDict_DelItem(self->output_active_ports, key);
+    }
+    if (self->output_channels && PyDict_Contains(self->output_channels, key)) {
+        PyDict_DelItem(self->output_channels, key);
+    }
+    if (self->output_devices && PyDict_Contains(self->output_devices, key)) {
+        PyDict_DelItem(self->output_devices, key);
+    }
+    if (self->output_mute && PyDict_Contains(self->output_mute, key)) {
+        PyDict_DelItem(self->output_mute, key);
+    }
+    if (self->output_ports && PyDict_Contains(self->output_ports, key)) {
+        PyDict_DelItem(self->output_ports, key);
+    }
+    if (self->output_volume && PyDict_Contains(self->output_volume, key)) {
+        PyDict_DelItem(self->output_volume, key);
+    }
+    Py_DecRef(key);
+    if (self->sink_removed_cb) {
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
+        PyEval_CallFunction(self->sink_removed_cb, "(Oi)", self, idx);
+        PyGILState_Release(gstate);
+    }
+}
+
 static void m_pa_source_new_cb(pa_context *c,                               
                                  const pa_source_info *info,                    
                                  int eol,                                       
@@ -2560,6 +2594,40 @@ static void m_pa_source_changed_cb(pa_context *c,
         PyGILState_STATE gstate;
         gstate = PyGILState_Ensure();
         PyEval_CallFunction(self->source_changed_cb, "(Oi)", self, info->index);
+        PyGILState_Release(gstate);
+    }
+}
+
+static void m_pa_source_removed_cb(DeepinPulseAudioObject *self, uint32_t idx)
+{
+    if (!self) 
+        return;
+
+    PyObject *key = NULL;
+    key = INT(idx);
+    if (self->input_active_ports && PyDict_Contains(self->input_active_ports, key)) {
+        PyDict_DelItem(self->input_active_ports, key);
+    }
+    if (self->input_channels && PyDict_Contains(self->input_channels, key)) {
+        PyDict_DelItem(self->input_channels, key);
+    }
+    if (self->input_devices && PyDict_Contains(self->input_devices, key)) {
+        PyDict_DelItem(self->input_devices, key);
+    }
+    if (self->input_mute && PyDict_Contains(self->input_mute, key)) {
+        PyDict_DelItem(self->input_mute, key);
+    }
+    if (self->input_ports && PyDict_Contains(self->input_ports, key)) {
+        PyDict_DelItem(self->input_ports, key);
+    }
+    if (self->input_volume && PyDict_Contains(self->input_volume, key)) {
+        PyDict_DelItem(self->input_volume, key);
+    }
+    Py_DecRef(key);
+    if (self->source_removed_cb) {
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
+        PyEval_CallFunction(self->source_removed_cb, "(Oi)", self, idx);
         PyGILState_Release(gstate);
     }
 }
@@ -2600,6 +2668,25 @@ static void m_pa_sink_input_changed_cb(pa_context *c,
     }
 }
 
+static void m_pa_sink_input_removed_cb(DeepinPulseAudioObject *self, uint32_t idx)
+{
+    if (!self) 
+        return;
+
+    PyObject *key = NULL;
+    key = INT(idx);
+    if (self->playback_streams && PyDict_Contains(self->playback_streams, key)) {
+        PyDict_DelItem(self->playback_streams, key);
+    }
+    Py_DecRef(key);
+    if (self->sink_input_removed_cb) {
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
+        PyEval_CallFunction(self->sink_input_removed_cb, "(Oi)", self, idx);
+        PyGILState_Release(gstate);
+    }
+}
+
 static void m_pa_source_output_new_cb(pa_context *c,
                                         const pa_source_output_info *info,
                                         int eol,
@@ -2636,6 +2723,25 @@ static void m_pa_source_output_changed_cb(pa_context *c,
     }
 }
 
+static void m_pa_source_output_removed_cb(DeepinPulseAudioObject *self, uint32_t idx)
+{
+    if (!self) 
+        return;
+
+    PyObject *key = NULL;
+    key = INT(idx);
+    if (self->record_stream && PyDict_Contains(self->record_stream, key)) {
+        PyDict_DelItem(self->record_stream, key);
+    }
+    Py_DecRef(key);
+    if (self->source_output_removed_cb) {
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
+        PyEval_CallFunction(self->source_output_removed_cb, "(Oi)", self, idx);
+        PyGILState_Release(gstate);
+    }
+}
+
 static void m_pa_server_new_cb(pa_context *c,
                                  const pa_server_info *info,
                                  void *userdata)
@@ -2648,7 +2754,7 @@ static void m_pa_server_new_cb(pa_context *c,
     if (self->server_new_cb) {
         PyGILState_STATE gstate;
         gstate = PyGILState_Ensure();
-        PyEval_CallFunction(self->server_new_cb, "O", self);
+        PyEval_CallFunction(self->server_new_cb, "(O)", self);
         PyGILState_Release(gstate);
     }
 }
@@ -2665,7 +2771,20 @@ static void m_pa_server_changed_cb(pa_context *c,
     if (self->server_changed_cb) {
         PyGILState_STATE gstate;
         gstate = PyGILState_Ensure();
-        PyEval_CallFunction(self->server_changed_cb, "O", self);                         
+        PyEval_CallFunction(self->server_changed_cb, "(O)", self);                         
+        PyGILState_Release(gstate);
+    }
+}
+
+static void m_pa_server_removed_cb(DeepinPulseAudioObject *self)
+{
+    if (!self) 
+        return;
+
+    if (self->server_removed_cb) {
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
+        PyEval_CallFunction(self->server_removed_cb, "(O)", self);
         PyGILState_Release(gstate);
     }
 }
@@ -2706,17 +2825,21 @@ static void m_pa_card_changed_cb(pa_context *c,
     }
 }
 
-static void m_pa_removed_event_cb(pa_context *c,
-                                  PyObject *callback,
-                                  uint32_t idx,
-                                  DeepinPulseAudioObject *this)
+static void m_pa_card_removed_cb(DeepinPulseAudioObject *self, uint32_t idx)
 {
-    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) this;
-    
-    if (callback) {
+    if (!self) 
+        return;
+
+    PyObject *key = NULL;
+    key = INT(idx);
+    if (self->card_devices && PyDict_Contains(self->card_devices, key)) {
+        PyDict_DelItem(self->card_devices, key);
+    }
+    Py_DecRef(key);
+    if (self->card_removed_cb) {
         PyGILState_STATE gstate;
         gstate = PyGILState_Ensure();
-        PyEval_CallFunction(callback, "(Oi)", self, idx);
+        PyEval_CallFunction(self->card_removed_cb, "(Oi)", self, idx);
         PyGILState_Release(gstate);
     }
 }
@@ -2737,6 +2860,8 @@ static void m_pa_context_subscribe_cb(pa_context *c,
                 pa_context_get_sink_info_by_index(c, idx, m_pa_sink_new_cb, self);
             } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
                 pa_context_get_sink_info_by_index(c, idx, m_pa_sink_changed_cb, self);
+            } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
+                m_pa_sink_removed_cb(self, idx);
             }
             break;
         case PA_SUBSCRIPTION_EVENT_SOURCE:
@@ -2744,6 +2869,8 @@ static void m_pa_context_subscribe_cb(pa_context *c,
                 pa_context_get_source_info_by_index(c, idx, m_pa_source_new_cb, self);
             } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
                 pa_context_get_source_info_by_index(c, idx, m_pa_source_changed_cb, self);
+            } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
+                m_pa_source_removed_cb(self, idx);
             }
             break;
         case PA_SUBSCRIPTION_EVENT_SINK_INPUT:
@@ -2751,6 +2878,8 @@ static void m_pa_context_subscribe_cb(pa_context *c,
                 pa_context_get_sink_input_info(c, idx, m_pa_sink_input_new_cb, self);
             } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
                 pa_context_get_sink_input_info(c, idx, m_pa_sink_input_changed_cb, self);
+            } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
+                m_pa_sink_input_removed_cb(self, idx);
             }
             break;
         case PA_SUBSCRIPTION_EVENT_SOURCE_OUTPUT:
@@ -2758,6 +2887,8 @@ static void m_pa_context_subscribe_cb(pa_context *c,
                 pa_context_get_source_output_info(c, idx, m_pa_source_output_new_cb, self);
             } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
                 pa_context_get_source_output_info(c, idx, m_pa_source_output_changed_cb, self);
+            } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
+                m_pa_source_output_removed_cb(self, idx);
             }
             break;
         case PA_SUBSCRIPTION_EVENT_CLIENT:                                      
@@ -2767,6 +2898,8 @@ static void m_pa_context_subscribe_cb(pa_context *c,
                 pa_context_get_server_info(c, m_pa_server_new_cb, self);
             } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
                 pa_context_get_server_info(c, m_pa_server_changed_cb, self);
+            } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
+                m_pa_server_removed_cb(self);
             }
             break;
         case PA_SUBSCRIPTION_EVENT_CARD:
@@ -2774,7 +2907,9 @@ static void m_pa_context_subscribe_cb(pa_context *c,
                 pa_context_get_card_info_by_index(c, idx, m_pa_card_new_cb, self);
             } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_CHANGE) {
                 pa_context_get_card_info_by_index(c, idx, m_pa_card_changed_cb, self);
-            }    
+            } else if ((t & PA_SUBSCRIPTION_EVENT_TYPE_MASK) == PA_SUBSCRIPTION_EVENT_REMOVE) {
+                m_pa_card_removed_cb(self, idx);
+            }
             break;
     }
 }
@@ -2798,13 +2933,15 @@ static void m_context_state_cb(pa_context *c, void *userdata)
             pa_context_set_subscribe_callback(c, m_pa_context_subscribe_cb, self);
 
             if (!(pa_op = pa_context_subscribe(c, (pa_subscription_mask_t)          
-                                           (PA_SUBSCRIPTION_MASK_SINK|          
-                                            PA_SUBSCRIPTION_MASK_SOURCE|        
-                                            PA_SUBSCRIPTION_MASK_SINK_INPUT|    
-                                            PA_SUBSCRIPTION_MASK_SOURCE_OUTPUT| 
-                                            PA_SUBSCRIPTION_MASK_CLIENT|        
-                                            PA_SUBSCRIPTION_MASK_SERVER|        
-                                            PA_SUBSCRIPTION_MASK_CARD), NULL, NULL))) {
+                                           (PA_SUBSCRIPTION_MASK_ALL), NULL, NULL))) {
+            /*if (!(pa_op = pa_context_subscribe(c, (pa_subscription_mask_t)          */
+                                           /*(PA_SUBSCRIPTION_MASK_SINK|          */
+                                            /*PA_SUBSCRIPTION_MASK_SOURCE|        */
+                                            /*PA_SUBSCRIPTION_MASK_SINK_INPUT|    */
+                                            /*PA_SUBSCRIPTION_MASK_SOURCE_OUTPUT| */
+                                            /*PA_SUBSCRIPTION_MASK_CLIENT|        */
+                                            /*PA_SUBSCRIPTION_MASK_SERVER|        */
+                                            /*PA_SUBSCRIPTION_MASK_CARD), NULL, NULL))) {*/
                 printf("pa_context_subscribe() failed\n");                 
                 return;                                                         
             }                                                                   
