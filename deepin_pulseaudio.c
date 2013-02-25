@@ -2517,7 +2517,12 @@ static void m_pa_sink_changed_cb(pa_context *c,
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
 
     if (self->sink_changed_cb) {
+        PyGILState_STATE gstate;
+        /*printf("sink changed callback %x, %x, %d\n", self, self->sink_changed_cb, info->index);*/
+        gstate = PyGILState_Ensure();
         PyEval_CallFunction(self->sink_changed_cb, "(Oi)", self, info->index);
+        PyGILState_Release(gstate);
+        /*printf("sink changed callback over \n");*/
     }
 }
 
