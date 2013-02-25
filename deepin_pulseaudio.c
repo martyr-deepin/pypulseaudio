@@ -876,9 +876,12 @@ static PyObject *m_get_output_ports_by_index(DeepinPulseAudioObject *self, PyObj
         ERROR("invalid arguments to get_output_ports_by_index");
         return NULL;
     }
+    PyObject *tmp = NULL;
     if (self->output_devices && PyDict_Contains(self->output_devices, INT(device))) {
-        return PyDict_GetItemString(PyDict_GetItem(
+        tmp = PyDict_GetItemString(PyDict_GetItem(
                         self->output_devices, INT(device)), "ports");
+        Py_INCREF(tmp);
+        return tmp;
     } else {
         Py_INCREF(Py_None);
         return Py_None;
@@ -899,9 +902,12 @@ static PyObject *m_get_input_ports_by_index(DeepinPulseAudioObject *self, PyObje
         ERROR("invalid arguments to get_output_channels");
         return NULL;
     }
+    PyObject *tmp = NULL;
     if (self->input_devices && PyDict_Contains(self->input_devices, INT(device))) {
-        return PyDict_GetItemString(PyDict_GetItem(
+        tmp = PyDict_GetItemString(PyDict_GetItem(
                         self->input_devices, INT(device)), "ports");
+        Py_INCREF(tmp);
+        return tmp;
     } else {
         Py_INCREF(Py_None);
         return Py_None;
@@ -923,8 +929,11 @@ static PyObject *m_get_output_channels_by_index(DeepinPulseAudioObject *self, Py
         return NULL;
     }
     
+    PyObject *tmp = NULL;
     if (self->output_channels && PyDict_Contains(self->output_channels, INT(device))) {
-        return PyDict_GetItem(self->output_channels, INT(device));
+        tmp = PyDict_GetItem(self->output_channels, INT(device));
+        Py_INCREF(tmp);
+        return tmp;
     } else {
         Py_INCREF(Py_None);
         return Py_None;
@@ -946,8 +955,11 @@ static PyObject *m_get_input_channels_by_index(DeepinPulseAudioObject *self, PyO
         return NULL;                                                            
     } 
                                                                                 
+    PyObject *tmp = NULL;
     if (self->input_channels && PyDict_Contains(self->input_channels, INT(device))) {
-        return PyDict_GetItem(self->input_channels, INT(device));
+        tmp = PyDict_GetItem(self->input_channels, INT(device));
+        Py_INCREF(tmp);
+        return tmp;
     } else {
         Py_INCREF(Py_None);
         return Py_None;
@@ -961,7 +973,7 @@ static PyObject *m_get_output_active_ports(DeepinPulseAudioObject *self)
 }
 
 static PyObject *m_get_output_active_ports_by_index(DeepinPulseAudioObject *self, PyObject *args)
-{                                                                               
+{
     int device = -1;
     
     if (!PyArg_ParseTuple(args, "i", &device)) {
@@ -969,8 +981,11 @@ static PyObject *m_get_output_active_ports_by_index(DeepinPulseAudioObject *self
         return NULL; 
     }                                                                           
                                                                                 
+    PyObject *tmp = NULL;
     if (self->output_active_ports && PyDict_Contains(self->output_active_ports, INT(device))) {
-        return PyDict_GetItem(self->output_active_ports, INT(device));
+        tmp = PyDict_GetItem(self->output_active_ports, INT(device));
+        Py_INCREF(tmp);
+        return tmp;
     } else {
         Py_INCREF(Py_None);
         return Py_None;
@@ -992,8 +1007,11 @@ static PyObject *m_get_input_active_ports_by_index(DeepinPulseAudioObject *self,
         return NULL;                                                               
     }                                                                              
                                                                                    
+    PyObject *tmp = NULL;
     if (self->input_active_ports && PyDict_Contains(self->input_active_ports, INT(device))) {
-        return PyDict_GetItem(self->input_active_ports, INT(device));
+        tmp = PyDict_GetItem(self->input_active_ports, INT(device));
+        Py_INCREF(tmp);
+        return tmp;
     } else {
         Py_INCREF(Py_None);
         return Py_None;
@@ -1015,9 +1033,12 @@ static PyObject *m_get_output_mute_by_index(DeepinPulseAudioObject *self, PyObje
         return NULL;                                                               
     }                                                                              
 
+    PyObject *tmp = NULL;
     if (self->output_devices && PyDict_Contains(self->output_devices, INT(device))) {
-        return PyDict_GetItemString(PyDict_GetItem(
+        tmp = PyDict_GetItemString(PyDict_GetItem(
                         self->output_devices, INT(device)), "mute");
+        Py_INCREF(tmp);
+        return tmp;
     } else {
         Py_INCREF(Py_None);
         return Py_None;
@@ -1039,9 +1060,12 @@ static PyObject *m_get_input_mute_by_index(DeepinPulseAudioObject *self, PyObjec
         return NULL;                                                            
     }                                                                           
                                                                                 
+    PyObject *tmp = NULL;
     if (self->input_devices && PyDict_Contains(self->input_devices, INT(device))) {
-        return PyDict_GetItemString(PyDict_GetItem(
+        tmp = PyDict_GetItemString(PyDict_GetItem(
                         self->input_devices, INT(device)),"mute");
+        Py_INCREF(tmp);
+        return tmp;
     } else {
         Py_INCREF(Py_None);
         return Py_None;
@@ -1063,8 +1087,11 @@ static PyObject *m_get_output_volume_by_index(DeepinPulseAudioObject *self, PyOb
         return NULL;                                                            
     }                                                                           
                                                                                 
+    PyObject *tmp = NULL;
     if (self->output_volume && PyDict_Contains(self->output_volume, INT(device))) {
-        return PyDict_GetItem(self->output_volume, INT(device));
+        tmp = PyDict_GetItem(self->output_volume, INT(device));
+        Py_INCREF(tmp);
+        return tmp;
     } else {
         Py_INCREF(Py_None);
         return Py_None;
@@ -1086,8 +1113,11 @@ static PyObject *m_get_input_volume_by_index(DeepinPulseAudioObject *self, PyObj
         return NULL;                                                            
     }                                                                           
                                                                                 
+    PyObject *tmp = NULL;
     if (self->input_volume && PyDict_Contains(self->input_volume, INT(device))) {
-        return PyDict_GetItem(self->input_volume, INT(device));             
+        tmp = PyDict_GetItem(self->input_volume, INT(device));             
+        Py_INCREF(tmp);
+        return tmp;
     } else {
         Py_INCREF(self->input_volume);
         return self->input_volume;                                             
@@ -1096,8 +1126,11 @@ static PyObject *m_get_input_volume_by_index(DeepinPulseAudioObject *self, PyObj
 
 static PyObject *m_get_fallback_sink(DeepinPulseAudioObject *self)
 {
+    PyObject *tmp = NULL;
     if (self->server_info && PyDict_Contains(self->server_info, STRING("fallback_sink"))) {
-        return PyDict_GetItemString(self->server_info, "fallback_sink");
+        tmp = PyDict_GetItemString(self->server_info, "fallback_sink");
+        Py_INCREF(tmp);
+        return tmp;
     } else {
         Py_INCREF(Py_None);
         return Py_None;
@@ -1106,8 +1139,11 @@ static PyObject *m_get_fallback_sink(DeepinPulseAudioObject *self)
 
 static PyObject *m_get_fallback_source(DeepinPulseAudioObject *self)
 {
+    PyObject *tmp = NULL;
     if (self->server_info && PyDict_Contains(self->server_info, STRING("fallback_source"))) {
-        return PyDict_GetItemString(self->server_info, "fallback_source");
+        tmp = PyDict_GetItemString(self->server_info, "fallback_source");
+        Py_INCREF(tmp);
+        return tmp;
     } else {
         Py_INCREF(Py_None);
         return Py_None;
@@ -1891,8 +1927,9 @@ static PyObject *m_set_fallback_source(DeepinPulseAudioObject *self,
                 return Py_False;
         }
         pa_mainloop_iterate(pa_ml, 1, NULL);
-        return Py_True;
     }
+    Py_INCREF(Py_True);
+    return Py_True;
 }
 
 static void m_pa_server_info_cb(pa_context *c, 
@@ -2016,7 +2053,6 @@ static void m_pa_cardlist_cb(pa_context *c,
                              INT(i->active_profile->n_sources));
         PyDict_SetItemString(card_dict, "active_profile", active_profile);
     } else {
-        Py_INCREF(Py_None);
         PyDict_SetItemString(card_dict, "active_profile", Py_None);
     }
     // proplist
