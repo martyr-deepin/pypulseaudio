@@ -2840,12 +2840,12 @@ static void m_pa_sink_input_removed_cb(DeepinPulseAudioObject *self, uint32_t id
     if (!self) 
         return;
 
-    PyObject *key = NULL;
-    key = INT(idx);
-    if (self->playback_streams && PyDict_Contains(self->playback_streams, key)) {
-        PyDict_DelItem(self->playback_streams, key);
-    }
-    Py_DecRef(key);
+    /*PyObject *key = NULL;*/
+    /*key = INT(idx);*/
+    /*if (self->playback_streams && PyDict_Contains(self->playback_streams, key)) {*/
+        /*PyDict_DelItem(self->playback_streams, key);*/
+    /*}*/
+    /*Py_DecRef(key);*/
     if (self->sink_input_removed_cb) {
         PyGILState_STATE gstate;
         gstate = PyGILState_Ensure();
@@ -2895,12 +2895,12 @@ static void m_pa_source_output_removed_cb(DeepinPulseAudioObject *self, uint32_t
     if (!self) 
         return;
 
-    PyObject *key = NULL;
-    key = INT(idx);
-    if (self->record_stream && PyDict_Contains(self->record_stream, key)) {
-        PyDict_DelItem(self->record_stream, key);
-    }
-    Py_DecRef(key);
+    /*PyObject *key = NULL;*/
+    /*key = INT(idx);*/
+    /*if (self->record_stream && PyDict_Contains(self->record_stream, key)) {*/
+        /*PyDict_DelItem(self->record_stream, key);*/
+    /*}*/
+    /*Py_DecRef(key);*/
     if (self->source_output_removed_cb) {
         PyGILState_STATE gstate;
         gstate = PyGILState_Ensure();
@@ -2997,12 +2997,12 @@ static void m_pa_card_removed_cb(DeepinPulseAudioObject *self, uint32_t idx)
     if (!self) 
         return;
 
-    PyObject *key = NULL;
-    key = INT(idx);
-    if (self->card_devices && PyDict_Contains(self->card_devices, key)) {
-        PyDict_DelItem(self->card_devices, key);
-    }
-    Py_DecRef(key);
+    /*PyObject *key = NULL;*/
+    /*key = INT(idx);*/
+    /*if (self->card_devices && PyDict_Contains(self->card_devices, key)) {*/
+        /*PyDict_DelItem(self->card_devices, key);*/
+    /*}*/
+    /*Py_DecRef(key);*/
     if (self->card_removed_cb) {
         PyGILState_STATE gstate;
         gstate = PyGILState_Ensure();
