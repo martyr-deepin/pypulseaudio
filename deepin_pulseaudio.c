@@ -759,6 +759,14 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
     int state = 0;                                                              
     int pa_ready = 0;                                                           
 
+    ////
+    PyObject *key, *value;
+    Py_ssize_t pos = 0;
+    printf("before get_devices output_device refcnt:\n");
+    while (PyDict_Next(self->output_devices, &pos, &key, &value)) {
+        printf("key: %ld\trefcnt: %d %d\n", PyInt_AsLong(key), key->ob_refcnt, value->ob_refcnt);
+    }
+    ////
     PyDict_Clear(self->server_info);
     PyDict_Clear(self->card_devices);
 
@@ -885,6 +893,14 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
                     pa_context_disconnect(pa_ctx);                              
                     pa_context_unref(pa_ctx);                                   
                     pa_mainloop_free(pa_ml);
+                    ////
+                    PyObject *key, *value;
+                    Py_ssize_t pos = 0;
+                    printf("output_device refcnt:\n");
+                    while (PyDict_Next(self->output_devices, &pos, &key, &value)) {
+                        printf("key: %ld\trefcnt: %d %d\n", PyInt_AsLong(key), key->ob_refcnt, value->ob_refcnt);
+                    }
+                    ////
                     Py_INCREF(Py_True);                                                    
                     return Py_True;     
                 }                                                               
@@ -2187,29 +2203,35 @@ static void m_pa_server_info_cb(pa_context *c,
         return;
     
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
+    PyObject *tmp_obj = NULL;
     
-    PyDict_SetItemString(self->server_info,
-                         "user_name",
-                         STRING(i->user_name));
-    PyDict_SetItemString(self->server_info,
-                         "host_name",
-                         STRING(i->host_name));
-    PyDict_SetItemString(self->server_info,
-                         "server_version",
-                         STRING(i->server_version));
-    PyDict_SetItemString(self->server_info,
-                         "server_name",
-                         STRING(i->server_name));
+    tmp_obj = STRING(i->user_name);
+    PyDict_SetItemString(self->server_info, "user_name", tmp_obj);
+    Py_DecRef(tmp_obj);
 
-    PyDict_SetItemString(self->server_info,
-                         "fallback_sink",
-                         STRING(i->default_sink_name));
-    PyDict_SetItemString(self->server_info,
-                         "fallback_source",
-                         STRING(i->default_source_name));
-    PyDict_SetItemString(self->server_info,
-                         "cookie",
-                         INT(i->cookie));
+    tmp_obj = STRING(i->host_name);
+    PyDict_SetItemString(self->server_info, "host_name", tmp_obj);
+    Py_DecRef(tmp_obj);
+
+    tmp_obj = STRING(i->server_version);
+    PyDict_SetItemString(self->server_info, "server_version", tmp_obj);
+    Py_DecRef(tmp_obj);
+
+    tmp_obj = STRING(i->server_name);
+    PyDict_SetItemString(self->server_info, "server_name", tmp_obj);
+    Py_DecRef(tmp_obj);
+
+    tmp_obj = STRING(i->default_sink_name);
+    PyDict_SetItemString(self->server_info, "fallback_sink", tmp_obj);
+    Py_DecRef(tmp_obj);
+
+    tmp_obj = STRING(i->default_source_name);
+    PyDict_SetItemString(self->server_info, "fallback_source", tmp_obj);
+    Py_DecRef(tmp_obj);
+
+    tmp_obj = INT(i->cookie);
+    PyDict_SetItemString(self->server_info, "cookie", tmp_obj);
+    Py_DecRef(tmp_obj);
 
 }
 
@@ -2235,6 +2257,7 @@ static void m_pa_cardlist_cb(pa_context *c,
     int ctr = 0;
     const char *prop_key;
     void *prop_state = NULL;
+    PyObject *tmp_obj = NULL;
 
     card_dict = PyDict_New();
     if (!card_dict) {
@@ -2264,8 +2287,12 @@ static void m_pa_cardlist_cb(pa_context *c,
         printf("PyList_New error");
         return;
     }
-    PyDict_SetItemString(card_dict, "name", STRING(i->name));
-    PyDict_SetItemString(card_dict, "n_profiles", INT(i->n_profiles));
+    tmp_obj = STRING(i->name);
+    PyDict_SetItemString(card_dict, "name", tmp_obj);
+    Py_DecRef(tmp_obj);
+    tmp_obj = INT(i->n_profiles);
+    PyDict_SetItemString(card_dict, "n_profiles", tmp_obj);
+    Py_DecRef(tmp_obj);
 
     // profile list
     for (ctr = 0; ctr < i->n_profiles; ctr++) {
@@ -2274,41 +2301,61 @@ static void m_pa_cardlist_cb(pa_context *c,
             printf("PyDict_New error");
             return;
         }
-        PyDict_SetItemString(profile_dict, "name",
-                             STRING(i->profiles[ctr].name));
+        tmp_obj = STRING(i->profiles[ctr].name);
+        PyDict_SetItemString(profile_dict, "name", tmp_obj);
+        Py_DecRef(tmp_obj);
 
-        PyDict_SetItemString(profile_dict, "description",
-                             STRING(i->profiles[ctr].description));
+        tmp_obj = STRING(i->profiles[ctr].description);
+        PyDict_SetItemString(profile_dict, "description", tmp_obj);
+        Py_DecRef(tmp_obj);
 
-        PyDict_SetItemString(profile_dict, "n_sinks",
-                             INT(i->profiles[ctr].n_sinks));
+        tmp_obj = INT(i->profiles[ctr].n_sinks);
+        PyDict_SetItemString(profile_dict, "n_sinks", tmp_obj);
+        Py_DecRef(tmp_obj);
 
-        PyDict_SetItemString(profile_dict, "n_sources",
-                             INT(i->profiles[ctr].n_sources));
+        tmp_obj = INT(i->profiles[ctr].n_sources);
+        PyDict_SetItemString(profile_dict, "n_sources", tmp_obj);
+        Py_DecRef(tmp_obj);
         PyList_Append(profile_list, profile_dict);
+        Py_DecRef(profile_dict);
     }
     PyDict_SetItemString(card_dict, "profiles", profile_list);
+    Py_DecRef(profile_list);
     // active profile
     if (i->active_profile) {
-        PyDict_SetItemString(active_profile, "name",
-                             STRING(i->active_profile->name));
-        PyDict_SetItemString(active_profile, "description",
-                             STRING(i->active_profile->description));
-        PyDict_SetItemString(active_profile, "n_sinks",
-                             INT(i->active_profile->n_sinks));
-        PyDict_SetItemString(active_profile, "n_sources",
-                             INT(i->active_profile->n_sources));
+        tmp_obj = STRING(i->active_profile->name);
+        PyDict_SetItemString(active_profile, "name", tmp_obj);
+        Py_DecRef(tmp_obj);
+
+        tmp_obj = STRING(i->active_profile->description);
+        PyDict_SetItemString(active_profile, "description", tmp_obj);
+        Py_DecRef(tmp_obj);
+
+        tmp_obj = INT(i->active_profile->n_sinks);
+        PyDict_SetItemString(active_profile, "n_sinks", tmp_obj);
+        Py_DecRef(tmp_obj);
+
+        tmp_obj = INT(i->active_profile->n_sources);
+        PyDict_SetItemString(active_profile, "n_sources", tmp_obj);
+        Py_DecRef(tmp_obj);
+
         PyDict_SetItemString(card_dict, "active_profile", active_profile);
+        Py_DecRef(active_profile);
     } else {
         PyDict_SetItemString(card_dict, "active_profile", Py_None);
     }
     // proplist
     while ((prop_key=pa_proplist_iterate(i->proplist, &prop_state))) {
-        PyDict_SetItemString(prop_dict, prop_key,
-                             STRING(pa_proplist_gets(i->proplist, prop_key)));
+        tmp_obj = STRING(pa_proplist_gets(i->proplist, prop_key));
+        PyDict_SetItemString(prop_dict, prop_key, tmp_obj);
+        Py_DecRef(tmp_obj);
     }
     PyDict_SetItemString(card_dict, "proplist", prop_dict);
-    PyDict_SetItemString(card_dict, "n_ports", INT(i->n_ports));
+    Py_DecRef(prop_dict);
+
+    tmp_obj = INT(i->n_ports);
+    PyDict_SetItemString(card_dict, "n_ports", tmp_obj);
+    Py_DecRef(tmp_obj);
     // ports list
     for (ctr = 0; ctr < i->n_ports; ctr++) {
         port_dict = PyDict_New();
@@ -2316,22 +2363,35 @@ static void m_pa_cardlist_cb(pa_context *c,
             printf("PyDict_New error");
             return;
         }
-        PyDict_SetItemString(port_dict, "name", 
-                             STRING(i->ports[ctr]->name));
-        PyDict_SetItemString(port_dict, "description", 
-                             STRING(i->ports[ctr]->description));
-        PyDict_SetItemString(port_dict, "available", 
-                             INT(i->ports[ctr]->available));
-        PyDict_SetItemString(port_dict, "direction", 
-                             INT(i->ports[ctr]->direction));
-        PyDict_SetItemString(port_dict, "n_profiles", 
-                             INT(i->ports[ctr]->n_profiles));
+        tmp_obj = STRING(i->ports[ctr]->name);
+        PyDict_SetItemString(port_dict, "name", tmp_obj);
+        Py_DecRef(tmp_obj);
+
+        tmp_obj = STRING(i->ports[ctr]->description);
+        PyDict_SetItemString(port_dict, "description", tmp_obj);
+        Py_DecRef(tmp_obj);
+
+        tmp_obj = INT(i->ports[ctr]->available);
+        PyDict_SetItemString(port_dict, "available", tmp_obj);
+        Py_DecRef(tmp_obj);
+
+        tmp_obj = INT(i->ports[ctr]->direction);
+        PyDict_SetItemString(port_dict, "direction", tmp_obj);
+        Py_DecRef(tmp_obj);
+
+        tmp_obj = INT(i->ports[ctr]->n_profiles);
+        PyDict_SetItemString(port_dict, "n_profiles", tmp_obj);
+        Py_DecRef(tmp_obj);
+
         PyList_Append(port_list, port_dict);
+        Py_DecRef(port_dict);
     }
     PyDict_SetItemString(card_dict, "ports", port_list);
+    Py_DecRef(port_list);
 
     key = INT(i->index);
     PyDict_SetItem(self->card_devices, key, card_dict);
+    Py_DecRef(key);
 }
 
 static void m_pa_sinklist_cb(pa_context *c, 
@@ -2356,6 +2416,7 @@ static void m_pa_sinklist_cb(pa_context *c,
     int i = 0;
     const char *prop_key;
     void *prop_state = NULL;
+    PyObject *tmp_obj = NULL;
 
     channel_value = PyList_New(0);
     if (!channel_value) {
@@ -2380,26 +2441,37 @@ static void m_pa_sinklist_cb(pa_context *c,
                                                                                 
     key = INT(l->index);
     while ((prop_key = pa_proplist_iterate(l->proplist, &prop_state))) {
-        PyDict_SetItemString(prop_dict, prop_key,
-                             STRING(pa_proplist_gets(l->proplist, prop_key)));
+        tmp_obj = STRING(pa_proplist_gets(l->proplist, prop_key));
+        PyDict_SetItemString(prop_dict, prop_key,tmp_obj);
+        Py_DecRef(tmp_obj);
     }
     // channel list
     for (i = 0; i < l->channel_map.channels; i++) {
-        PyList_Append(channel_value, INT(l->channel_map.map[i]));
+        tmp_obj = INT(l->channel_map.map[i]);
+        PyList_Append(channel_value, tmp_obj);
+        Py_DecRef(tmp_obj);
     }
-    PyDict_SetItem(self->output_channels, key,
-                   Py_BuildValue("{sisnsO}", 
+    tmp_obj = Py_BuildValue("{sisnsO}", 
                                  "can_balance", pa_channel_map_can_balance(&l->channel_map),
                                  "channels", l->channel_map.channels,
-                                 "map", channel_value));
+                                 "map", channel_value);
+
+    printf("sinklist: %p %p %p\n", self->output_channels, key, tmp_obj);
+    if (self->output_channels) printf("output_channels: %d\n", self->output_channels->ob_refcnt);
+    if (key) printf("key: %d\n", key->ob_refcnt);
+    if (tmp_obj) printf("tmp: %d\n", tmp_obj->ob_refcnt);
+    PyDict_SetItem(self->output_channels, key, tmp_obj);
+    Py_DecRef(tmp_obj);
     // ports list
     ports = l->ports;   
     for (i = 0; i < l->n_ports; i++) {                                  
         port = ports[i];   
-        PyList_Append(port_list, Py_BuildValue("(ssi)",
+        tmp_obj = Py_BuildValue("(ssi)",
                                                port->name,
                                                port->description,
-                                               port->available)); 
+                                               port->available);
+        PyList_Append(port_list, tmp_obj); 
+        Py_DecRef(tmp_obj);
     }                
     // active port
     active_port = l->active_port;
@@ -2409,23 +2481,29 @@ static void m_pa_sinklist_cb(pa_context *c,
                                           active_port->description, 
                                           active_port->available);
         PyDict_SetItem(self->output_active_ports, key, active_port_value);
+        Py_DecRef(active_port_value);
     } else {
         PyDict_SetItem(self->output_active_ports, key, Py_None);
     }
     // volume list
     for (i = 0; i < l->volume.channels; i++) {
-        PyList_Append(volume_value, INT(l->volume.values[i]));
+        tmp_obj = INT(l->volume.values[i]);
+        PyList_Append(volume_value, tmp_obj);
+        Py_DecRef(tmp_obj);
     }
     PyDict_SetItem(self->output_volume, key, volume_value);
-    PyDict_SetItem(self->output_devices, key,
-                   Py_BuildValue("{sssssisIsOsOsO}",
+    Py_DecRef(volume_value);
+    tmp_obj = Py_BuildValue("{sssssisIsOsOsO}",
                                  "name", l->name,
                                  "description", l->description,
                                  "base_volume", l->base_volume,
                                  "n_ports", l->n_ports,
                                  "mute", PyBool_FromLong(l->mute),
                                  "ports", port_list,
-                                 "proplist", prop_dict));
+                                 "proplist", prop_dict);
+    PyDict_SetItem(self->output_devices, key,tmp_obj);
+    Py_DecRef(tmp_obj);
+    Py_DecRef(key);
 }                   
 
 // See above.  This callback is pretty much identical to the previous
@@ -2451,6 +2529,7 @@ static void m_pa_sourcelist_cb(pa_context *c,
     int i = 0;                                                                  
     const char *prop_key;
     void *prop_state = NULL;
+    PyObject *tmp_obj = NULL;
                                                                                 
     if (eol > 0 || !l) {                                                              
         return;                                                                 
@@ -2480,26 +2559,32 @@ static void m_pa_sourcelist_cb(pa_context *c,
                                                                                 
     key = INT(l->index);
     while ((prop_key=pa_proplist_iterate(l->proplist, &prop_state))) {
-        PyDict_SetItemString(prop_dict, prop_key,
-                             STRING(pa_proplist_gets(l->proplist, prop_key)));
+        tmp_obj = STRING(pa_proplist_gets(l->proplist, prop_key));
+        PyDict_SetItemString(prop_dict, prop_key,tmp_obj);
+        Py_DecRef(tmp_obj);
     }
     // channel list
     for (i = 0; i < l->channel_map.channels; i++) {                    
-        PyList_Append(channel_value, INT(l->channel_map.map[i]));         
+        tmp_obj = INT(l->channel_map.map[i]);
+        PyList_Append(channel_value, tmp_obj);
+        Py_DecRef(tmp_obj);
     }                                                                   
-    PyDict_SetItem(self->input_channels, key,
-                   Py_BuildValue("{sisnsO}",
+    tmp_obj = Py_BuildValue("{sisnsO}",
                                  "can_balance", pa_channel_map_can_balance(&l->channel_map),
                                  "channels", l->channel_map.channels,
-                                 "map", channel_value));
+                                 "map", channel_value);
+    PyDict_SetItem(self->input_channels, key, tmp_obj);
+    Py_DecRef(tmp_obj);
     // ports list
     ports = l->ports;                                                   
     for (i = 0; i < l->n_ports; i++) {                                  
         port = ports[i];                                                
-        PyList_Append(port_list, Py_BuildValue("(ssi)",
+        tmp_obj = Py_BuildValue("(ssi)",
                                                port->name,
                                                port->description,
-                                               port->available));
+                                               port->available);
+        PyList_Append(port_list, tmp_obj);
+        Py_DecRef(tmp_obj);
     } 
     // active port
     active_port = l->active_port;                                       
@@ -2509,23 +2594,29 @@ static void m_pa_sourcelist_cb(pa_context *c,
                                           active_port->description,         
                                           active_port->available);               
         PyDict_SetItem(self->input_active_ports, key, active_port_value);
+        Py_DecRef(active_port_value);
     } else {
         PyDict_SetItem(self->input_active_ports, key, Py_None);
     }
     // volume list
     for (i = 0; i < l->volume.channels; i++) {
-        PyList_Append(volume_value, INT(l->volume.values[i]));
+        tmp_obj = INT(l->volume.values[i]);
+        PyList_Append(volume_value, tmp_obj);
+        Py_DecRef(tmp_obj);
     }
     PyDict_SetItem(self->input_volume, key, volume_value);
-    PyDict_SetItem(self->input_devices, key,
-                   Py_BuildValue("{sssssisIsOsOsO}",
+    Py_DecRef(volume_value);
+    tmp_obj = Py_BuildValue("{sssssisIsOsOsO}",
                                  "name", l->name,
                                  "description", l->description,
                                  "base_volume", l->base_volume,
                                  "n_ports", l->n_ports,
                                  "mute", PyBool_FromLong(l->mute),
                                  "ports", port_list,
-                                 "proplist", prop_dict));    
+                                 "proplist", prop_dict);
+    PyDict_SetItem(self->input_devices, key, tmp_obj);
+    Py_DecRef(tmp_obj);
+    Py_DecRef(key);
 }                   
 
 static void m_pa_sinkinputlist_info_cb(pa_context *c,
@@ -2545,6 +2636,7 @@ static void m_pa_sinkinputlist_info_cb(pa_context *c,
     int i;
     const char *prop_key;
     void *prop_state = NULL;
+    PyObject *tmp_obj = NULL;
 
     channel_value = PyList_New(0);
     if (!channel_value) {
@@ -2565,19 +2657,23 @@ static void m_pa_sinkinputlist_info_cb(pa_context *c,
     key = INT(l->index);
     // proplist
     while ((prop_key=pa_proplist_iterate(l->proplist, &prop_state))) {
-        PyDict_SetItemString(prop_dict, prop_key,
-                             STRING(pa_proplist_gets(l->proplist, prop_key)));
+        tmp_obj = STRING(pa_proplist_gets(l->proplist, prop_key));
+        PyDict_SetItemString(prop_dict, prop_key,tmp_obj);
+        Py_DecRef(tmp_obj);
     }
     // channel list
     for (i = 0; i < l->channel_map.channels; i++) {
-        PyList_Append(channel_value, INT(l->channel_map.map[i]));
+        tmp_obj = INT(l->channel_map.map[i]);
+        PyList_Append(channel_value, tmp_obj);
+        Py_DecRef(tmp_obj);
     }
     //volume list
     for (i = 0; i < l->volume.channels; i++) {
-        PyList_Append(volume_value, INT(l->volume.values[i]));
+        tmp_obj = INT(l->volume.values[i]);
+        PyList_Append(volume_value, tmp_obj);
+        Py_DecRef(tmp_obj);
     }
-    PyDict_SetItem(self->playback_streams, key,
-                   Py_BuildValue("{sssisisisOsssssOsisOsisisi}",
+    tmp_obj = Py_BuildValue("{sssisisisOsssssOsisOsisisi}",
                                  "name", l->name,
                                  "owner_module", l->owner_module,
                                  "client", l->client,
@@ -2590,7 +2686,10 @@ static void m_pa_sinkinputlist_info_cb(pa_context *c,
                                  "volume", volume_value,
                                  "mute", l->mute,
                                  "has_volume", l->has_volume,
-                                 "volume_writable", l->volume_writable));
+                                 "volume_writable", l->volume_writable);
+    PyDict_SetItem(self->playback_streams, key, tmp_obj);
+    Py_DecRef(tmp_obj);
+    Py_DecRef(key);
 }
 
 static void m_pa_sourceoutputlist_info_cb(pa_context *c,
@@ -2610,6 +2709,7 @@ static void m_pa_sourceoutputlist_info_cb(pa_context *c,
     int i;
     const char *prop_key;
     void *prop_state = NULL;
+    PyObject *tmp_obj = NULL;
 
     channel_value = PyList_New(0);
     if (!channel_value) {
@@ -2630,19 +2730,23 @@ static void m_pa_sourceoutputlist_info_cb(pa_context *c,
     key = INT(l->index);
     // proplist
     while ((prop_key=pa_proplist_iterate(l->proplist, &prop_state))) {
-        PyDict_SetItemString(prop_dict, prop_key,
-                             STRING(pa_proplist_gets(l->proplist, prop_key)));
+        tmp_obj = STRING(pa_proplist_gets(l->proplist, prop_key));
+        PyDict_SetItemString(prop_dict, prop_key,tmp_obj);
+        Py_DecRef(tmp_obj);
     }
     // channel list
     for (i = 0; i < l->channel_map.channels; i++) {
-        PyList_Append(channel_value, INT(l->channel_map.map[i]));
+        tmp_obj = INT(l->channel_map.map[i]);
+        PyList_Append(channel_value, tmp_obj);
+        Py_DecRef(tmp_obj);
     }
     //volume list
     for (i = 0; i < l->volume.channels; i++) {
-        PyList_Append(volume_value, INT(l->volume.values[i]));
+        tmp_obj = INT(l->volume.values[i]);
+        PyList_Append(volume_value, tmp_obj);
+        Py_DecRef(tmp_obj);
     }
-    PyDict_SetItem(self->record_stream, key,
-                   Py_BuildValue("{sssisisisOsssssOsisOsisisi}",
+    tmp_obj = Py_BuildValue("{sssisisisOsssssOsisOsisisi}",
                                  "name", l->name,
                                  "owner_module", l->owner_module,
                                  "client", l->client,
@@ -2655,7 +2759,10 @@ static void m_pa_sourceoutputlist_info_cb(pa_context *c,
                                  "volume", volume_value,
                                  "mute", l->mute,
                                  "has_volume", l->has_volume,
-                                 "volume_writable", l->volume_writable));
+                                 "volume_writable", l->volume_writable);
+    PyDict_SetItem(self->record_stream, key, tmp_obj);
+    Py_DecRef(tmp_obj);
+    Py_DecRef(key);
 }
 
 static void m_pa_sink_new_cb(pa_context *c,
