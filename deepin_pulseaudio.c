@@ -699,14 +699,84 @@ static PyObject *m_pa_volume_get_balance(PyObject *self, PyObject *args)
 /* FIXME: fuzzy ... more object wait for destruction */
 static PyObject *m_delete(DeepinPulseAudioObject *self) 
 {
-    if (self->output_devices) {
-        Py_XDECREF(self->output_devices);
-        self->output_devices = NULL;
+    if (self->server_info) {
+        Py_XDECREF(self->server_info);
+        self->server_info = NULL;
+    }
+
+    if (self->card_devices) {
+        Py_XDECREF(self->card_devices);
+        self->card_devices = NULL;
     }
 
     if (self->input_devices) {
         Py_XDECREF(self->input_devices);
         self->input_devices = NULL;
+    }
+
+    if (self->output_devices) {
+        Py_XDECREF(self->output_devices);
+        self->output_devices = NULL;
+    }
+
+    if (self->input_ports) {
+        Py_XDECREF(self->input_ports);
+        self->input_ports = NULL;
+    }
+
+    if (self->output_ports) {
+        Py_XDECREF(self->output_ports);
+        self->output_ports = NULL;
+    }
+
+    if (self->input_channels) {
+        Py_XDECREF(self->input_channels);
+        self->input_channels = NULL;
+    }
+
+    if (self->output_channels) {
+        Py_XDECREF(self->output_channels);
+        self->output_channels = NULL;
+    }
+
+    if (self->input_active_ports) {
+        Py_XDECREF(self->input_active_ports);
+        self->input_active_ports = NULL;
+    }
+
+    if (self->output_active_ports) {
+        Py_XDECREF(self->output_active_ports);
+        self->output_active_ports = NULL;
+    }
+
+    if (self->input_mute) {
+        Py_XDECREF(self->input_mute);
+        self->input_mute = NULL;
+    }
+
+    if (self->output_mute) {
+        Py_XDECREF(self->output_mute);
+        self->output_mute = NULL;
+    }
+
+    if (self->input_volume) {
+        Py_XDECREF(self->input_volume);
+        self->input_volume = NULL;
+    }
+
+    if (self->output_volume) {
+        Py_XDECREF(self->output_volume);
+        self->output_volume = NULL;
+    }
+
+    if (self->playback_streams) {
+        Py_XDECREF(self->playback_streams);
+        self->playback_streams = NULL;
+    }
+
+    if (self->record_stream) {
+        Py_XDECREF(self->record_stream);
+        self->record_stream = NULL;
     }
 
     if (self->pa_ctx) {                                                         
@@ -756,17 +826,9 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
     pa_operation *pa_op;                                                        
                                                                                 
     // We'll need these state variables to keep track of our requests           
-    int state = 0;                                                              
+    int state = 0;
     int pa_ready = 0;                                                           
 
-    ////
-    PyObject *key, *value;
-    Py_ssize_t pos = 0;
-    printf("before get_devices output_device refcnt:\n");
-    while (PyDict_Next(self->output_devices, &pos, &key, &value)) {
-        printf("key: %ld\trefcnt: %d %d\n", PyInt_AsLong(key), key->ob_refcnt, value->ob_refcnt);
-    }
-    ////
     PyDict_Clear(self->server_info);
     PyDict_Clear(self->card_devices);
 
@@ -837,7 +899,7 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
                 // Now we wait for our operation to complete.  When it's        
                 // complete our pa_output_devices is filled out, and we move 
                 // along to the next state                                      
-                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {       
+                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
                     pa_operation_unref(pa_op);                                  
                                                                                 
                     // Now we perform another operation to get the source       
@@ -847,7 +909,7 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
                             m_pa_sourcelist_cb,                                   
                             self);                                                  
                     // Update the state so we know what to do next              
-                    state++;                                                    
+                    state++;
                 }                                                               
                 break;                                                          
             case 2:                                                             
@@ -893,14 +955,6 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
                     pa_context_disconnect(pa_ctx);                              
                     pa_context_unref(pa_ctx);                                   
                     pa_mainloop_free(pa_ml);
-                    ////
-                    PyObject *key, *value;
-                    Py_ssize_t pos = 0;
-                    printf("output_device refcnt:\n");
-                    while (PyDict_Next(self->output_devices, &pos, &key, &value)) {
-                        printf("key: %ld\trefcnt: %d %d\n", PyInt_AsLong(key), key->ob_refcnt, value->ob_refcnt);
-                    }
-                    ////
                     Py_INCREF(Py_True);                                                    
                     return Py_True;     
                 }                                                               
@@ -922,6 +976,7 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
 
 static PyObject *m_get_output_devices(DeepinPulseAudioObject *self) 
 {
+    /*printf("get_output_devices: %p %d\n", self->output_devices, self->output_devices->ob_refcnt);*/
     if (self->output_devices) {
         Py_INCREF(self->output_devices);
         return self->output_devices;
@@ -2232,7 +2287,6 @@ static void m_pa_server_info_cb(pa_context *c,
     tmp_obj = INT(i->cookie);
     PyDict_SetItemString(self->server_info, "cookie", tmp_obj);
     Py_DecRef(tmp_obj);
-
 }
 
 static void m_pa_cardlist_cb(pa_context *c,
@@ -2287,9 +2341,11 @@ static void m_pa_cardlist_cb(pa_context *c,
         printf("PyList_New error");
         return;
     }
+
     tmp_obj = STRING(i->name);
     PyDict_SetItemString(card_dict, "name", tmp_obj);
     Py_DecRef(tmp_obj);
+
     tmp_obj = INT(i->n_profiles);
     PyDict_SetItemString(card_dict, "n_profiles", tmp_obj);
     Py_DecRef(tmp_obj);
@@ -2316,11 +2372,13 @@ static void m_pa_cardlist_cb(pa_context *c,
         tmp_obj = INT(i->profiles[ctr].n_sources);
         PyDict_SetItemString(profile_dict, "n_sources", tmp_obj);
         Py_DecRef(tmp_obj);
+
         PyList_Append(profile_list, profile_dict);
         Py_DecRef(profile_dict);
     }
     PyDict_SetItemString(card_dict, "profiles", profile_list);
     Py_DecRef(profile_list);
+
     // active profile
     if (i->active_profile) {
         tmp_obj = STRING(i->active_profile->name);
@@ -2343,6 +2401,7 @@ static void m_pa_cardlist_cb(pa_context *c,
         Py_DecRef(active_profile);
     } else {
         PyDict_SetItemString(card_dict, "active_profile", Py_None);
+        Py_DecRef(active_profile);
     }
     // proplist
     while ((prop_key=pa_proplist_iterate(i->proplist, &prop_state))) {
@@ -2356,6 +2415,7 @@ static void m_pa_cardlist_cb(pa_context *c,
     tmp_obj = INT(i->n_ports);
     PyDict_SetItemString(card_dict, "n_ports", tmp_obj);
     Py_DecRef(tmp_obj);
+
     // ports list
     for (ctr = 0; ctr < i->n_ports; ctr++) {
         port_dict = PyDict_New();
@@ -2391,6 +2451,7 @@ static void m_pa_cardlist_cb(pa_context *c,
 
     key = INT(i->index);
     PyDict_SetItem(self->card_devices, key, card_dict);
+    Py_DecRef(card_dict);
     Py_DecRef(key);
 }
 
@@ -2442,7 +2503,7 @@ static void m_pa_sinklist_cb(pa_context *c,
     key = INT(l->index);
     while ((prop_key = pa_proplist_iterate(l->proplist, &prop_state))) {
         tmp_obj = STRING(pa_proplist_gets(l->proplist, prop_key));
-        PyDict_SetItemString(prop_dict, prop_key,tmp_obj);
+        PyDict_SetItemString(prop_dict, prop_key, tmp_obj);
         Py_DecRef(tmp_obj);
     }
     // channel list
@@ -2452,14 +2513,11 @@ static void m_pa_sinklist_cb(pa_context *c,
         Py_DecRef(tmp_obj);
     }
     tmp_obj = Py_BuildValue("{sisnsO}", 
-                                 "can_balance", pa_channel_map_can_balance(&l->channel_map),
-                                 "channels", l->channel_map.channels,
-                                 "map", channel_value);
+                            "can_balance", pa_channel_map_can_balance(&l->channel_map),
+                            "channels", l->channel_map.channels,
+                            "map", channel_value);
+    Py_DecRef(channel_value);
 
-    printf("sinklist: %p %p %p\n", self->output_channels, key, tmp_obj);
-    if (self->output_channels) printf("output_channels: %d\n", self->output_channels->ob_refcnt);
-    if (key) printf("key: %d\n", key->ob_refcnt);
-    if (tmp_obj) printf("tmp: %d\n", tmp_obj->ob_refcnt);
     PyDict_SetItem(self->output_channels, key, tmp_obj);
     Py_DecRef(tmp_obj);
     // ports list
@@ -2467,9 +2525,9 @@ static void m_pa_sinklist_cb(pa_context *c,
     for (i = 0; i < l->n_ports; i++) {                                  
         port = ports[i];   
         tmp_obj = Py_BuildValue("(ssi)",
-                                               port->name,
-                                               port->description,
-                                               port->available);
+                                port->name,
+                                port->description,
+                                port->available);
         PyList_Append(port_list, tmp_obj); 
         Py_DecRef(tmp_obj);
     }                
@@ -2493,14 +2551,19 @@ static void m_pa_sinklist_cb(pa_context *c,
     }
     PyDict_SetItem(self->output_volume, key, volume_value);
     Py_DecRef(volume_value);
+    PyObject *tmp_obj1 = PyBool_FromLong(l->mute);
     tmp_obj = Py_BuildValue("{sssssisIsOsOsO}",
-                                 "name", l->name,
-                                 "description", l->description,
-                                 "base_volume", l->base_volume,
-                                 "n_ports", l->n_ports,
-                                 "mute", PyBool_FromLong(l->mute),
-                                 "ports", port_list,
-                                 "proplist", prop_dict);
+                            "name", l->name,
+                            "description", l->description,
+                            "base_volume", l->base_volume,
+                            "n_ports", l->n_ports,
+                            "mute", tmp_obj1,
+                            "ports", port_list,
+                            "proplist", prop_dict);
+    Py_DecRef(tmp_obj1);
+    Py_DecRef(port_list);
+    Py_DecRef(prop_dict);
+
     PyDict_SetItem(self->output_devices, key,tmp_obj);
     Py_DecRef(tmp_obj);
     Py_DecRef(key);
@@ -2570,9 +2633,11 @@ static void m_pa_sourcelist_cb(pa_context *c,
         Py_DecRef(tmp_obj);
     }                                                                   
     tmp_obj = Py_BuildValue("{sisnsO}",
-                                 "can_balance", pa_channel_map_can_balance(&l->channel_map),
-                                 "channels", l->channel_map.channels,
-                                 "map", channel_value);
+                            "can_balance", pa_channel_map_can_balance(&l->channel_map),
+                            "channels", l->channel_map.channels,
+                            "map", channel_value);
+    Py_DecRef(channel_value);
+
     PyDict_SetItem(self->input_channels, key, tmp_obj);
     Py_DecRef(tmp_obj);
     // ports list
@@ -2580,9 +2645,9 @@ static void m_pa_sourcelist_cb(pa_context *c,
     for (i = 0; i < l->n_ports; i++) {                                  
         port = ports[i];                                                
         tmp_obj = Py_BuildValue("(ssi)",
-                                               port->name,
-                                               port->description,
-                                               port->available);
+                                port->name,
+                                port->description,
+                                port->available);
         PyList_Append(port_list, tmp_obj);
         Py_DecRef(tmp_obj);
     } 
@@ -2606,18 +2671,23 @@ static void m_pa_sourcelist_cb(pa_context *c,
     }
     PyDict_SetItem(self->input_volume, key, volume_value);
     Py_DecRef(volume_value);
+    PyObject *tmp_obj1 = PyBool_FromLong(l->mute);
     tmp_obj = Py_BuildValue("{sssssisIsOsOsO}",
-                                 "name", l->name,
-                                 "description", l->description,
-                                 "base_volume", l->base_volume,
-                                 "n_ports", l->n_ports,
-                                 "mute", PyBool_FromLong(l->mute),
-                                 "ports", port_list,
-                                 "proplist", prop_dict);
+                            "name", l->name,
+                            "description", l->description,
+                            "base_volume", l->base_volume,
+                            "n_ports", l->n_ports,
+                            "mute", tmp_obj1,
+                            "ports", port_list,
+                            "proplist", prop_dict);
+    Py_DecRef(tmp_obj1);
+    Py_DecRef(port_list);
+    Py_DecRef(prop_dict);
+
     PyDict_SetItem(self->input_devices, key, tmp_obj);
     Py_DecRef(tmp_obj);
     Py_DecRef(key);
-}                   
+}
 
 static void m_pa_sinkinputlist_info_cb(pa_context *c,
                                        const pa_sink_input_info *l,
@@ -2658,7 +2728,7 @@ static void m_pa_sinkinputlist_info_cb(pa_context *c,
     // proplist
     while ((prop_key=pa_proplist_iterate(l->proplist, &prop_state))) {
         tmp_obj = STRING(pa_proplist_gets(l->proplist, prop_key));
-        PyDict_SetItemString(prop_dict, prop_key,tmp_obj);
+        PyDict_SetItemString(prop_dict, prop_key, tmp_obj);
         Py_DecRef(tmp_obj);
     }
     // channel list
@@ -2674,19 +2744,23 @@ static void m_pa_sinkinputlist_info_cb(pa_context *c,
         Py_DecRef(tmp_obj);
     }
     tmp_obj = Py_BuildValue("{sssisisisOsssssOsisOsisisi}",
-                                 "name", l->name,
-                                 "owner_module", l->owner_module,
-                                 "client", l->client,
-                                 "sink", l->sink,
-                                 "channel", channel_value,
-                                 "resample_method", l->resample_method,
-                                 "driver", l->driver,
-                                 "proplist", prop_dict,
-                                 "corked", l->corked,
-                                 "volume", volume_value,
-                                 "mute", l->mute,
-                                 "has_volume", l->has_volume,
-                                 "volume_writable", l->volume_writable);
+                            "name", l->name,
+                            "owner_module", l->owner_module,
+                            "client", l->client,
+                            "sink", l->sink,
+                            "channel", channel_value,
+                            "resample_method", l->resample_method,
+                            "driver", l->driver,
+                            "proplist", prop_dict,
+                            "corked", l->corked,
+                            "volume", volume_value,
+                            "mute", l->mute,
+                            "has_volume", l->has_volume,
+                            "volume_writable", l->volume_writable);
+    Py_DecRef(channel_value);
+    Py_DecRef(prop_dict);
+    Py_DecRef(volume_value);
+
     PyDict_SetItem(self->playback_streams, key, tmp_obj);
     Py_DecRef(tmp_obj);
     Py_DecRef(key);
@@ -2747,19 +2821,22 @@ static void m_pa_sourceoutputlist_info_cb(pa_context *c,
         Py_DecRef(tmp_obj);
     }
     tmp_obj = Py_BuildValue("{sssisisisOsssssOsisOsisisi}",
-                                 "name", l->name,
-                                 "owner_module", l->owner_module,
-                                 "client", l->client,
-                                 "source", l->source,
-                                 "channel", channel_value,
-                                 "resample_method", l->resample_method,
-                                 "driver", l->driver,
-                                 "proplist", prop_dict,
-                                 "corked", l->corked,
-                                 "volume", volume_value,
-                                 "mute", l->mute,
-                                 "has_volume", l->has_volume,
-                                 "volume_writable", l->volume_writable);
+                            "name", l->name,
+                            "owner_module", l->owner_module,
+                            "client", l->client,
+                            "source", l->source,
+                            "channel", channel_value,
+                            "resample_method", l->resample_method,
+                            "driver", l->driver,
+                            "proplist", prop_dict,
+                            "corked", l->corked,
+                            "volume", volume_value,
+                            "mute", l->mute,
+                            "has_volume", l->has_volume,
+                            "volume_writable", l->volume_writable);
+    Py_DecRef(channel_value);
+    Py_DecRef(prop_dict);
+    Py_DecRef(volume_value);
     PyDict_SetItem(self->record_stream, key, tmp_obj);
     Py_DecRef(tmp_obj);
     Py_DecRef(key);
