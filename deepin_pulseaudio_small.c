@@ -129,39 +129,10 @@ static void m_pa_sourceoutputlist_info_cb(pa_context *c,
 
 static PyObject *m_get_server_info(DeepinPulseAudioObject *self);
 static PyObject *m_get_cards(DeepinPulseAudioObject *self);
-static PyObject *m_get_devices(DeepinPulseAudioObject *self);
 static PyObject *m_get_output_devices(DeepinPulseAudioObject *self);
 static PyObject *m_get_input_devices(DeepinPulseAudioObject *self);
 static PyObject *m_get_playback_streams(DeepinPulseAudioObject *self);
 static PyObject *m_get_record_streams(DeepinPulseAudioObject *self);
-
-static PyObject *m_get_output_ports(DeepinPulseAudioObject *self);
-static PyObject *m_get_output_ports_by_index(DeepinPulseAudioObject *self, PyObject *args);
-static PyObject *m_get_input_ports(DeepinPulseAudioObject *self);
-static PyObject *m_get_input_ports_by_index(DeepinPulseAudioObject *self, PyObject *args);
-
-static PyObject *m_get_output_channels(DeepinPulseAudioObject *self);
-static PyObject *m_get_output_channels_by_index(DeepinPulseAudioObject *self, PyObject *args);
-static PyObject *m_get_input_channels(DeepinPulseAudioObject *self);
-static PyObject *m_get_input_channels_by_index(DeepinPulseAudioObject *self, PyObject *args);   
-
-static PyObject *m_get_output_active_ports(DeepinPulseAudioObject *self);
-static PyObject *m_get_output_active_ports_by_index(DeepinPulseAudioObject *self, PyObject *args);               
-static PyObject *m_get_input_active_ports(DeepinPulseAudioObject *self);
-static PyObject *m_get_input_active_ports_by_index(DeepinPulseAudioObject *self, PyObject *args);     
-
-static PyObject *m_get_output_mute(DeepinPulseAudioObject *self);
-static PyObject *m_get_output_mute_by_index(DeepinPulseAudioObject *self, PyObject *args);     
-static PyObject *m_get_input_mute(DeepinPulseAudioObject *self);
-static PyObject *m_get_input_mute_by_index(DeepinPulseAudioObject *self, PyObject *args);
-
-static PyObject *m_get_fallback_sink(DeepinPulseAudioObject *self);
-static PyObject *m_get_fallback_source(DeepinPulseAudioObject *self);
-
-static PyObject *m_get_output_volume(DeepinPulseAudioObject *self);
-static PyObject *m_get_output_volume_by_index(DeepinPulseAudioObject *self, PyObject *args);
-static PyObject *m_get_input_volume(DeepinPulseAudioObject *self);
-static PyObject *m_get_input_volume_by_index(DeepinPulseAudioObject *self, PyObject *args);
 
 static PyObject *m_set_output_active_port(DeepinPulseAudioObject *self, PyObject *args);
 static PyObject *m_set_input_active_port(DeepinPulseAudioObject *self, PyObject *args);
@@ -188,42 +159,13 @@ static PyMethodDef deepin_pulseaudio_object_methods[] =
     {"delete", (PyCFunction)m_delete, METH_NOARGS, "Deepin PulseAudio destruction"}, 
     {"connect_to_pulse", (PyCFunction)m_connect_to_pulse, METH_VARARGS, "Connect to PulseAudio"},
     {"connect", (PyCFunction)m_connect, METH_VARARGS, "Connect signal callback"},
+
     {"get_server_info", (PyCFunction)m_get_server_info, METH_NOARGS, "Get server info"},
     {"get_cards", (PyCFunction)m_get_cards, METH_NOARGS, "Get card list"}, 
-    {"get_devices", (PyCFunction)m_get_devices, METH_NOARGS, "Get device list"}, 
-
     {"get_output_devices", (PyCFunction)m_get_output_devices, METH_NOARGS, "Get output device list"},  
     {"get_input_devices", (PyCFunction)m_get_input_devices, METH_NOARGS, "Get input device list"},      
     {"get_playback_streams", (PyCFunction)m_get_playback_streams, METH_NOARGS, "Get playback stream list"},
     {"get_record_streams", (PyCFunction)m_get_record_streams, METH_NOARGS, "Get record stream list"},
-
-    {"get_output_ports", (PyCFunction)m_get_output_ports, METH_NOARGS, "Get output port list"}, 
-    {"get_output_ports_by_index", (PyCFunction)m_get_output_ports_by_index, METH_VARARGS, "Get output port list"}, 
-    {"get_input_ports", (PyCFunction)m_get_input_ports, METH_NOARGS, "Get input port list"},    
-    {"get_input_ports_by_index", (PyCFunction)m_get_input_ports_by_index, METH_VARARGS, "Get input port list"},    
-
-    {"get_output_channels", (PyCFunction)m_get_output_channels, METH_VARARGS, "Get output channels"}, 
-    {"get_output_channels_by_index", (PyCFunction)m_get_output_channels_by_index, METH_VARARGS, "Get output channels"}, 
-    {"get_input_channels", (PyCFunction)m_get_input_channels, METH_VARARGS, "Get input channels"},   
-    {"get_input_channels_by_index", (PyCFunction)m_get_input_channels_by_index, METH_VARARGS, "Get input channels"},   
-
-    {"get_output_active_ports", (PyCFunction)m_get_output_active_ports, METH_VARARGS, "Get output active ports"},
-    {"get_output_active_ports_by_index", (PyCFunction)m_get_output_active_ports_by_index, METH_VARARGS, "Get output active ports"},
-    {"get_input_active_ports", (PyCFunction)m_get_input_active_ports, METH_VARARGS, "Get input active ports"},    
-    {"get_input_active_ports_by_index", (PyCFunction)m_get_input_active_ports_by_index, METH_VARARGS, "Get input active ports"},    
-
-    {"get_output_mute", (PyCFunction)m_get_output_mute, METH_VARARGS, "Get output mute"}, 
-    {"get_output_mute_by_index", (PyCFunction)m_get_output_mute_by_index, METH_VARARGS, "Get output mute"}, 
-    {"get_input_mute", (PyCFunction)m_get_input_mute, METH_VARARGS, "Get input mute"},
-    {"get_input_mute_by_index", (PyCFunction)m_get_input_mute_by_index, METH_VARARGS, "Get input mute"},
-
-    {"get_output_volume", (PyCFunction)m_get_output_volume, METH_VARARGS, "Get output volume"}, 
-    {"get_output_volume_by_index", (PyCFunction)m_get_output_volume_by_index, METH_VARARGS, "Get output volume"}, 
-    {"get_input_volume", (PyCFunction)m_get_input_volume, METH_VARARGS, "Get input volume"},  
-    {"get_input_volume_by_index", (PyCFunction)m_get_input_volume_by_index, METH_VARARGS, "Get input volume"},  
-    
-    {"get_fallback_sink", (PyCFunction)m_get_fallback_sink, METH_NOARGS, "Get fallback sink"},
-    {"get_fallback_source", (PyCFunction)m_get_fallback_source, METH_NOARGS, "Get fallback source"},
 
     {"set_output_active_port", (PyCFunction)m_set_output_active_port, METH_VARARGS, "Set output active port"}, 
     {"set_input_active_port", (PyCFunction)m_set_input_active_port, METH_VARARGS, "Set input active port"}, 
@@ -433,6 +375,7 @@ PyMODINIT_FUNC initdeepin_pulseaudio_small()
     m_deepin_pulseaudio_object_constants = PyDict_New();
 }
 
+// TODO 删除一些对象
 static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object() 
 {
     DeepinPulseAudioObject *self = NULL;
@@ -708,6 +651,7 @@ static PyObject *m_pa_volume_get_balance(PyObject *self, PyObject *args)
 }
 
 /* FIXME: fuzzy ... more object wait for destruction */
+// TODO 删除一些对象
 static PyObject *m_delete(DeepinPulseAudioObject *self) 
 {
     if (self->server_info) {
@@ -805,525 +749,96 @@ static PyObject *m_delete(DeepinPulseAudioObject *self)
     return Py_None;
 }
 
+//**********************************
+// pa get function
 static PyObject *m_get_server_info(DeepinPulseAudioObject *self)
 {
-    if (self->server_info) {
-        Py_INCREF(self->server_info);
-        return self->server_info;
-    } else {
-        Py_INCREF(Py_None);
-        return Py_None;
+    if (!self->pa_ctx || pa_context_get_state(self->pa_ctx) != PA_CONTEXT_READY) {
+        RETURN_FALSE;
     }
+    pa_operation *pa_op = NULL;
+    if (!(pa_op = pa_context_get_server_info(self->pa_ctx, m_pa_server_info_cb, self))) {
+        printf("pa_context_get_server_info() failed");
+        RETURN_FALSE;
+    }
+    pa_operation_unref(pa_op);
+    RETURN_TRUE;
 }
 
 static PyObject *m_get_cards(DeepinPulseAudioObject *self) 
 {
-    if (self->card_devices) {
-        Py_INCREF(self->card_devices);
-        return self->card_devices;
-    } else {
-        Py_INCREF(Py_None);
-        return Py_None;
+    if (!self->pa_ctx || pa_context_get_state(self->pa_ctx) != PA_CONTEXT_READY) {
+        RETURN_FALSE;
     }
+    pa_operation *pa_op = NULL;
+    if (!(pa_op = pa_context_get_card_info_list(self->pa_ctx, m_pa_cardlist_cb, self))) {
+        printf("pa_context_get_card_info_list() failed");
+        RETURN_FALSE;
+    }
+    pa_operation_unref(pa_op);
+    RETURN_TRUE;
 }
 
 /* http://freedesktop.org/software/pulseaudio/doxygen/introspect.html#sinksrc_subsec */
-static PyObject *m_get_devices(DeepinPulseAudioObject *self) 
-{
-    printf("get_device context_state:%d\n", pa_context_get_state(self->pa_ctx));
-    RETURN_FALSE;
-    /*if (!self->pa_ctx || pa_context_get_state(self->pa_ctx) != PA_CONTEXT_READY) {*/
-        /*printf("xxxxx %d %d\n", pa_context_get_state(self->pa_ctx), PA_CONTEXT_READY);*/
-        /*RETURN_FALSE;*/
-    /*}*/
-    /*// Define our pulse audio loop and connection variables                     */
-    /*pa_mainloop *pa_ml;                                                         */
-    /*pa_mainloop_api *pa_mlapi;                                                  */
-    /*pa_context *pa_ctx;*/
-    pa_operation *pa_op;                                                        
-                                                                                
-    /*// We'll need these state variables to keep track of our requests           */
-    int state = 0;
-    /*int pa_ready = 0;                                                           */
-
-    PyDict_Clear(self->server_info);
-    PyDict_Clear(self->card_devices);
-
-    PyDict_Clear(self->input_devices);
-    PyDict_Clear(self->output_devices);
-    PyDict_Clear(self->input_ports);
-    PyDict_Clear(self->output_ports);
-    PyDict_Clear(self->input_channels);
-    PyDict_Clear(self->output_channels);
-    PyDict_Clear(self->input_active_ports);
-    PyDict_Clear(self->output_active_ports);
-    PyDict_Clear(self->input_mute);
-    PyDict_Clear(self->output_mute);
-    PyDict_Clear(self->input_volume);
-    PyDict_Clear(self->output_volume);
-    PyDict_Clear(self->playback_streams);
-    PyDict_Clear(self->record_stream);
-
-    /*// Create a mainloop API and connection to the default server               */
-    /*pa_ml = pa_mainloop_new();                                                  */
-    /*pa_mlapi = pa_mainloop_get_api(pa_ml);                                      */
-    /*pa_ctx = pa_context_new(pa_mlapi, PACKAGE);       */
-                                                                                
-    /*// This function connects to the pulse server                               */
-    /*pa_context_connect(pa_ctx, NULL, 0, NULL);*/
-
-    // This function defines a callback so the server will tell us it's state.  
-    // Our callback will wait for the state to be ready.  The callback will     
-    // modify the variable to 1 so we know when we have a connection and it's   
-    // ready.                                                                   
-    // If there's an error, the callback will set pa_ready to 2                 
-    /*pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);              */
-                                                                                
-    // Now we'll enter into an infinite loop until we get the data we receive   
-    // or if there's an error                                                   
-    for (;;) {                                                                  
-        /*// We can't do anything until PA is ready, so just iterate the mainloop */
-        /*// and continue                                                         */
-        /*if (pa_ready == 0) {                                                    */
-            /*pa_mainloop_iterate(pa_ml, 1, NULL);                                */
-            /*continue;                                                           */
-        /*}                                                                       */
-        /*// We couldn't get a connection to the server, so exit out              */
-        /*if (pa_ready == 2) {                                                    */
-            /*pa_context_disconnect(pa_ctx);                                      */
-            /*pa_context_unref(pa_ctx);*/
-            /*pa_mainloop_free(pa_ml);                                            */
-            /*Py_INCREF(Py_False);                                                    */
-            /*return Py_False;     */
-        /*}                                                                       */
-        /*// At this point, we're connected to the server and ready to make*/
-        /*// requests                                                             */
-        switch (state) {                                                        
-            // State 0: we haven't done anything yet                            
-            case 0:                                                             
-                // This sends an operation to the server.  pa_sinklist_info is  
-                // our callback function and a pointer to our devicelist will   
-                // be passed to the callback The operation ID is stored in the  
-                // pa_op variable                                               
-                pa_op = pa_context_get_sink_info_list(self->pa_ctx,
-                        m_pa_sinklist_cb,
-                        self);
-                                                                                
-                // Update state for next iteration through the loop             
-                state++;
-                break;                                                          
-            case 1:                                                             
-                // Now we wait for our operation to complete.  When it's        
-                // complete our pa_output_devices is filled out, and we move 
-                // along to the next state                                      
-                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
-                    pa_operation_unref(pa_op);
-                                                                                
-                    // Now we perform another operation to get the source       
-                    // (input device) list just like before.  This time we pass 
-                    // a pointer to our input structure                         
-                    pa_op = pa_context_get_source_info_list(self->pa_ctx,
-                            m_pa_sourcelist_cb,
-                            self);
-                    // Update the state so we know what to do next              
-                    state++;
-                }                                                               
-                break;                                                          
-            case 2:                                                             
-                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
-                    pa_operation_unref(pa_op);
-                    // Now wo perform another operation to get the card list.
-                    pa_op = pa_context_get_card_info_list(self->pa_ctx,
-                            m_pa_cardlist_cb, self);
-                    state++;
-                }
-                break;
-            case 3:
-                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
-                    pa_operation_unref(pa_op);
-                    // Now to get the server info
-                    pa_op = pa_context_get_server_info(self->pa_ctx,
-                            m_pa_server_info_cb, self);
-                    state++;
-                }
-                break;
-            case 4:
-                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
-                    pa_operation_unref(pa_op);
-                    // Now to get the server info
-                    pa_op = pa_context_get_sink_input_info_list(self->pa_ctx,
-                            m_pa_sinkinputlist_info_cb, self);
-                    state++;
-                }
-                break;
-            case 5:
-                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
-                    pa_operation_unref(pa_op);
-                    // Now to get the server info
-                    pa_op = pa_context_get_source_output_info_list(self->pa_ctx,
-                            m_pa_sourceoutputlist_info_cb, self);
-                    state++;
-                }
-                break;
-            case 6:
-                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
-                    // Now we're done, clean up and disconnect and return       
-                    pa_operation_unref(pa_op);
-                    /*pa_context_disconnect(pa_ctx);*/
-                    /*pa_context_unref(pa_ctx);*/
-                    /*pa_mainloop_free(pa_ml);*/
-                    Py_INCREF(Py_True);
-                    return Py_True;
-                }                                                               
-                break;                                                          
-            default:
-                // We should never see this state                               
-                Py_INCREF(Py_False);
-                return Py_False;
-        }                               
-        // Iterate the main loop and go again.  The second argument is whether  
-        // or not the iteration should block until something is ready to be     
-        // done.  Set it to zero for non-blocking.                              
-        /*pa_mainloop_iterate(self->pa_ml, 1, NULL);*/
-    }
-
-    Py_INCREF(Py_True);
-    return Py_True;
-}
 
 static PyObject *m_get_output_devices(DeepinPulseAudioObject *self) 
 {
-    /*printf("get_output_devices: %p %d\n", self->output_devices, self->output_devices->ob_refcnt);*/
-    if (self->output_devices) {
-        Py_INCREF(self->output_devices);
-        return self->output_devices;
-    } else {
-        Py_INCREF(Py_None);
-        return Py_None;
+    if (!self->pa_ctx || pa_context_get_state(self->pa_ctx) != PA_CONTEXT_READY) {
+        RETURN_FALSE;
     }
+    pa_operation *pa_op = NULL;
+    if (!(pa_op = pa_context_get_sink_info_list(self->pa_ctx, m_pa_sinklist_cb, self))) {
+        printf("pa_context_get_sink_info_list() failed");
+        RETURN_FALSE;
+    }
+    pa_operation_unref(pa_op);
+    RETURN_TRUE;
 }
 
 static PyObject *m_get_input_devices(DeepinPulseAudioObject *self)          
 {                                                                               
-    if (self->input_devices) {
-        Py_INCREF(self->input_devices);
-        return self->input_devices;                                                                
-    } else {
-        Py_INCREF(Py_None);
-        return Py_None;
+    if (!self->pa_ctx || pa_context_get_state(self->pa_ctx) != PA_CONTEXT_READY) {
+        RETURN_FALSE;
     }
-}        
+    pa_operation *pa_op = NULL;
+    if (!(pa_op = pa_context_get_source_info_list(self->pa_ctx, m_pa_sourcelist_cb, self))) {
+        printf("pa_context_get_source_info_list() failed");
+        RETURN_FALSE;
+    }
+    pa_operation_unref(pa_op);
+    RETURN_TRUE;
+}
 
 static PyObject *m_get_playback_streams(DeepinPulseAudioObject *self)
 {
-    if (self->playback_streams) {
-        Py_INCREF(self->playback_streams);
-        return self->playback_streams;
-    } else {
-        Py_INCREF(Py_None);
-        return Py_None;
+    if (!self->pa_ctx || pa_context_get_state(self->pa_ctx) != PA_CONTEXT_READY) {
+        RETURN_FALSE;
     }
+    pa_operation *pa_op = NULL;
+    if (!(pa_op = pa_context_get_sink_input_info_list(self->pa_ctx, m_pa_sinkinputlist_info_cb, self))) {
+        printf("pa_context_get_sink_input_info_list() failed");
+        RETURN_FALSE;
+    }
+    pa_operation_unref(pa_op);
+    RETURN_TRUE;
 }
 
 static PyObject *m_get_record_streams(DeepinPulseAudioObject *self)
 {
-    if (self->record_stream) {
-        Py_INCREF(self->record_stream);
-        return self->record_stream;
-    } else {
-        Py_INCREF(Py_None);
-        return Py_None;
+    if (!self->pa_ctx || pa_context_get_state(self->pa_ctx) != PA_CONTEXT_READY) {
+        RETURN_FALSE;
     }
+    pa_operation *pa_op = NULL;
+    if (!(pa_op = pa_context_get_source_output_info_list(self->pa_ctx, m_pa_sourceoutputlist_info_cb, self))) {
+        printf("pa_context_get_source_output_info_list() failed");
+        RETURN_FALSE;
+    }
+    pa_operation_unref(pa_op);
+    RETURN_TRUE;
 }
 
-static PyObject *m_get_output_ports(DeepinPulseAudioObject *self) 
-{
-    Py_INCREF(self->output_ports);
-    return self->output_ports;
-}
-
-static PyObject *m_get_output_ports_by_index(DeepinPulseAudioObject *self, PyObject *args)
-{
-    int device = -1;
-    
-    if (!PyArg_ParseTuple(args, "i", &device)) {
-        ERROR("invalid arguments to get_output_ports_by_index");
-        return NULL;
-    }
-    PyObject *tmp = NULL;
-    if (self->output_devices && PyDict_Contains(self->output_devices, INT(device))) {
-        tmp = PyDict_GetItemString(PyDict_GetItem(
-                        self->output_devices, INT(device)), "ports");
-        Py_INCREF(tmp);
-        return tmp;
-    } else {
-        Py_INCREF(Py_None);
-        return Py_None;
-    }
-}
-
-static PyObject *m_get_input_ports(DeepinPulseAudioObject *self)               
-{
-    Py_INCREF(self->input_ports);
-    return self->input_ports;
-}
-
-static PyObject *m_get_input_ports_by_index(DeepinPulseAudioObject *self, PyObject *args)
-{                                                                                  
-    int device = -1;
-
-    if (!PyArg_ParseTuple(args, "i", &device)) {
-        ERROR("invalid arguments to get_output_channels");
-        return NULL;
-    }
-    PyObject *tmp = NULL;
-    if (self->input_devices && PyDict_Contains(self->input_devices, INT(device))) {
-        tmp = PyDict_GetItemString(PyDict_GetItem(
-                        self->input_devices, INT(device)), "ports");
-        Py_INCREF(tmp);
-        return tmp;
-    } else {
-        Py_INCREF(Py_None);
-        return Py_None;
-    }
-}    
-
-static PyObject *m_get_output_channels(DeepinPulseAudioObject *self)
-{
-    Py_INCREF(self->output_channels);
-    return self->output_channels;
-}
-
-static PyObject *m_get_output_channels_by_index(DeepinPulseAudioObject *self, PyObject *args) 
-{
-    int device = -1;
-    
-    if (!PyArg_ParseTuple(args, "i", &device)) {
-        ERROR("invalid arguments to get_output_channels");
-        return NULL;
-    }
-    
-    PyObject *tmp = NULL;
-    if (self->output_channels && PyDict_Contains(self->output_channels, INT(device))) {
-        tmp = PyDict_GetItem(self->output_channels, INT(device));
-        Py_INCREF(tmp);
-        return tmp;
-    } else {
-        Py_INCREF(Py_None);
-        return Py_None;
-    }
-}
-
-static PyObject *m_get_input_channels(DeepinPulseAudioObject *self)
-{
-    Py_INCREF(self->input_channels);
-    return self->input_channels;
-}
-
-static PyObject *m_get_input_channels_by_index(DeepinPulseAudioObject *self, PyObject *args)
-{                                                                               
-    int device = -1;
-    
-    if (!PyArg_ParseTuple(args, "i", &device)) {
-        ERROR("invalid arguments to get_input_channels");                      
-        return NULL;                                                            
-    } 
-                                                                                
-    PyObject *tmp = NULL;
-    if (self->input_channels && PyDict_Contains(self->input_channels, INT(device))) {
-        tmp = PyDict_GetItem(self->input_channels, INT(device));
-        Py_INCREF(tmp);
-        return tmp;
-    } else {
-        Py_INCREF(Py_None);
-        return Py_None;
-    }
-}             
-
-static PyObject *m_get_output_active_ports(DeepinPulseAudioObject *self)
-{
-    Py_INCREF(self->output_active_ports);
-    return self->output_active_ports;
-}
-
-static PyObject *m_get_output_active_ports_by_index(DeepinPulseAudioObject *self, PyObject *args)
-{
-    int device = -1;
-    
-    if (!PyArg_ParseTuple(args, "i", &device)) {
-        ERROR("invalid arguments to get_output_active_ports");                      
-        return NULL; 
-    }                                                                           
-                                                                                
-    PyObject *tmp = NULL;
-    if (self->output_active_ports && PyDict_Contains(self->output_active_ports, INT(device))) {
-        tmp = PyDict_GetItem(self->output_active_ports, INT(device));
-        Py_INCREF(tmp);
-        return tmp;
-    } else {
-        Py_INCREF(Py_None);
-        return Py_None;
-    }
-}           
-
-static PyObject *m_get_input_active_ports(DeepinPulseAudioObject *self)
-{
-    Py_INCREF(self->input_active_ports);
-    return self->input_active_ports;
-}
-
-static PyObject *m_get_input_active_ports_by_index(DeepinPulseAudioObject *self, PyObject *args)
-{                                                                                  
-    int device = -1;
-    
-    if (!PyArg_ParseTuple(args, "i", &device)) {
-        ERROR("invalid arguments to get_input_active_ports");                          
-        return NULL;                                                               
-    }                                                                              
-                                                                                   
-    PyObject *tmp = NULL;
-    if (self->input_active_ports && PyDict_Contains(self->input_active_ports, INT(device))) {
-        tmp = PyDict_GetItem(self->input_active_ports, INT(device));
-        Py_INCREF(tmp);
-        return tmp;
-    } else {
-        Py_INCREF(Py_None);
-        return Py_None;
-    }
-}                
-
-static PyObject *m_get_output_mute(DeepinPulseAudioObject *self)
-{
-    Py_INCREF(self->output_mute);
-    return self->output_mute;
-}
-
-static PyObject *m_get_output_mute_by_index(DeepinPulseAudioObject *self, PyObject *args) 
-{
-    int device = -1;
-
-    if (!PyArg_ParseTuple(args, "i", &device)) {                                   
-        ERROR("invalid arguments to get_output_mute");                              
-        return NULL;                                                               
-    }                                                                              
-
-    PyObject *tmp = NULL;
-    if (self->output_devices && PyDict_Contains(self->output_devices, INT(device))) {
-        tmp = PyDict_GetItemString(PyDict_GetItem(
-                        self->output_devices, INT(device)), "mute");
-        Py_INCREF(tmp);
-        return tmp;
-    } else {
-        Py_INCREF(Py_None);
-        return Py_None;
-    }
-}
-
-static PyObject *m_get_input_mute(DeepinPulseAudioObject *self)
-{
-    Py_INCREF(self->input_mute);
-    return self->input_mute;
-}
-
-static PyObject *m_get_input_mute_by_index(DeepinPulseAudioObject *self, PyObject *args) 
-{                                                                               
-    int device = -1;
-    
-    if (!PyArg_ParseTuple(args, "i", &device)) {
-        ERROR("invalid arguments to get_input_mute");                              
-        return NULL;                                                            
-    }                                                                           
-                                                                                
-    PyObject *tmp = NULL;
-    if (self->input_devices && PyDict_Contains(self->input_devices, INT(device))) {
-        tmp = PyDict_GetItemString(PyDict_GetItem(
-                        self->input_devices, INT(device)),"mute");
-        Py_INCREF(tmp);
-        return tmp;
-    } else {
-        Py_INCREF(Py_None);
-        return Py_None;
-    }
-}                
-
-static PyObject *m_get_output_volume(DeepinPulseAudioObject *self)
-{
-    Py_INCREF(self->output_volume);
-    return self->output_volume;
-}
-
-static PyObject *m_get_output_volume_by_index(DeepinPulseAudioObject *self, PyObject *args) 
-{                                                                               
-    int device = -1;
-    
-    if (!PyArg_ParseTuple(args, "i", &device)) {
-        ERROR("invalid arguments to get_output_volume");                              
-        return NULL;                                                            
-    }                                                                           
-                                                                                
-    PyObject *tmp = NULL;
-    if (self->output_volume && PyDict_Contains(self->output_volume, INT(device))) {
-        tmp = PyDict_GetItem(self->output_volume, INT(device));
-        Py_INCREF(tmp);
-        return tmp;
-    } else {
-        Py_INCREF(Py_None);
-        return Py_None;
-    }
-}           
-
-static PyObject *m_get_input_volume(DeepinPulseAudioObject *self)
-{
-    Py_INCREF(self->input_volume);
-    return self->input_volume;
-}
-
-static PyObject *m_get_input_volume_by_index(DeepinPulseAudioObject *self, PyObject *args)
-{                                                                               
-    int device = -1;
-    
-    if (!PyArg_ParseTuple(args, "i", &device)) {
-        ERROR("invalid arguments to get_input_volume");                            
-        return NULL;                                                            
-    }                                                                           
-                                                                                
-    PyObject *tmp = NULL;
-    if (self->input_volume && PyDict_Contains(self->input_volume, INT(device))) {
-        tmp = PyDict_GetItem(self->input_volume, INT(device));             
-        Py_INCREF(tmp);
-        return tmp;
-    } else {
-        Py_INCREF(self->input_volume);
-        return self->input_volume;                                             
-    }
-}                                                                                        
-
-static PyObject *m_get_fallback_sink(DeepinPulseAudioObject *self)
-{
-    PyObject *tmp = NULL;
-    if (self->server_info && PyDict_Contains(self->server_info, STRING("fallback_sink"))) {
-        tmp = PyDict_GetItemString(self->server_info, "fallback_sink");
-        Py_INCREF(tmp);
-        return tmp;
-    } else {
-        Py_INCREF(Py_None);
-        return Py_None;
-    }
-}
-
-static PyObject *m_get_fallback_source(DeepinPulseAudioObject *self)
-{
-    PyObject *tmp = NULL;
-    if (self->server_info && PyDict_Contains(self->server_info, STRING("fallback_source"))) {
-        tmp = PyDict_GetItemString(self->server_info, "fallback_source");
-        Py_INCREF(tmp);
-        return tmp;
-    } else {
-        Py_INCREF(Py_None);
-        return Py_None;
-    }
-}
-
+//******************************************
+// pa set function
 static PyObject *m_set_output_active_port(DeepinPulseAudioObject *self, 
                                           PyObject *args) 
 {
@@ -2267,6 +1782,8 @@ static PyObject *m_set_fallback_source(DeepinPulseAudioObject *self,
     return Py_True;
 }
 
+//*****************************************
+// pulseaudio get info callback
 static void m_pa_server_info_cb(pa_context *c, 
                                 const pa_server_info *i, 
                                 void *userdata)
@@ -2277,33 +1794,40 @@ static void m_pa_server_info_cb(pa_context *c,
     printf("pa_server_info_cb\n");
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
     PyObject *tmp_obj = NULL;
+    PyObject *server_dict = NULL;
+
+    server_dict = PyDict_New();
+    if (!server_dict) {
+        printf("PyDict_New error");
+        return;
+    }
     
     tmp_obj = STRING(i->user_name);
-    PyDict_SetItemString(self->server_info, "user_name", tmp_obj);
+    PyDict_SetItemString(server_dict, "user_name", tmp_obj);
     Py_DecRef(tmp_obj);
 
     tmp_obj = STRING(i->host_name);
-    PyDict_SetItemString(self->server_info, "host_name", tmp_obj);
+    PyDict_SetItemString(server_dict, "host_name", tmp_obj);
     Py_DecRef(tmp_obj);
 
     tmp_obj = STRING(i->server_version);
-    PyDict_SetItemString(self->server_info, "server_version", tmp_obj);
+    PyDict_SetItemString(server_dict, "server_version", tmp_obj);
     Py_DecRef(tmp_obj);
 
     tmp_obj = STRING(i->server_name);
-    PyDict_SetItemString(self->server_info, "server_name", tmp_obj);
+    PyDict_SetItemString(server_dict, "server_name", tmp_obj);
     Py_DecRef(tmp_obj);
 
     tmp_obj = STRING(i->default_sink_name);
-    PyDict_SetItemString(self->server_info, "fallback_sink", tmp_obj);
+    PyDict_SetItemString(server_dict, "fallback_sink", tmp_obj);
     Py_DecRef(tmp_obj);
 
     tmp_obj = STRING(i->default_source_name);
-    PyDict_SetItemString(self->server_info, "fallback_source", tmp_obj);
+    PyDict_SetItemString(server_dict, "fallback_source", tmp_obj);
     Py_DecRef(tmp_obj);
 
     tmp_obj = INT(i->cookie);
-    PyDict_SetItemString(self->server_info, "cookie", tmp_obj);
+    PyDict_SetItemString(server_dict, "cookie", tmp_obj);
     Py_DecRef(tmp_obj);
 
     PyObject *func = NULL;
@@ -2311,7 +1835,7 @@ static void m_pa_server_info_cb(pa_context *c,
         if (PyCallable_Check(func)) {
             PyGILState_STATE gstate;
             gstate = PyGILState_Ensure();
-            PyEval_CallFunction(func, "(O)", self);
+            PyEval_CallFunction(func, "(OO)", self, server_dict);
             PyGILState_Release(gstate);
         }
     }
@@ -2334,7 +1858,6 @@ static void m_pa_cardlist_cb(pa_context *c,
     PyObject *port_dict = NULL;
     PyObject *active_profile = NULL;
     PyObject *prop_dict = NULL;
-    PyObject *key = NULL;
 
     int ctr = 0;
     const char *prop_key;
@@ -2477,17 +2000,12 @@ static void m_pa_cardlist_cb(pa_context *c,
     PyDict_SetItemString(card_dict, "ports", port_list);
     Py_DecRef(port_list);
 
-    key = INT(i->index);
-    PyDict_SetItem(self->card_devices, key, card_dict);
-    Py_DecRef(card_dict);
-    Py_DecRef(key);
-    
     PyObject *func = NULL;
     if (self->state_cb && PyDict_Check(self->state_cb) && ((func=PyDict_GetItemString(self->state_cb, "card")) != NULL)) {
         if (PyCallable_Check(func)) {
             PyGILState_STATE gstate;
             gstate = PyGILState_Ensure();
-            PyEval_CallFunction(func, "(Oi)", self, i->index);
+            PyEval_CallFunction(func, "(OOi)", self, card_dict, i->index);
             PyGILState_Release(gstate);
         }
     }
@@ -2506,10 +2024,9 @@ static void m_pa_sinklist_cb(pa_context *c,
     pa_sink_port_info **ports  = NULL;                                          
     pa_sink_port_info *port = NULL;        
     pa_sink_port_info *active_port = NULL;
-    PyObject *key = NULL;
     PyObject *channel_value = NULL;
-    PyObject *active_port_value = NULL;
-    PyObject *volume_value = NULL;
+    PyObject *ret_active_port_value = NULL;
+    PyObject *ret_volume_value = NULL;
     PyObject *prop_dict = NULL;
     PyObject *port_list = NULL;
     int i = 0;
@@ -2517,13 +2034,27 @@ static void m_pa_sinklist_cb(pa_context *c,
     void *prop_state = NULL;
     PyObject *tmp_obj = NULL;
 
+    PyObject *ret_channel_dict = NULL;
+    ret_channel_dict = PyDict_New();
+    if (!ret_channel_dict) {
+        printf("PyDict_New error");
+        return;
+    }
+
+    PyObject *ret_dev_dict = NULL;
+    ret_dev_dict = PyDict_New();
+    if (!ret_dev_dict) {
+        printf("PyDict_New error");
+        return;
+    }
+
     channel_value = PyList_New(0);
     if (!channel_value) {
         printf("PyList_New error");
         return;
     }
-    volume_value = PyList_New(0);
-    if (!volume_value) {
+    ret_volume_value = PyList_New(0);
+    if (!ret_volume_value) {
         printf("PyList_New error");
         return;
     }
@@ -2538,7 +2069,6 @@ static void m_pa_sinklist_cb(pa_context *c,
         return;
     }
                                                                                 
-    key = INT(l->index);
     while ((prop_key = pa_proplist_iterate(l->proplist, &prop_state))) {
         tmp_obj = STRING(pa_proplist_gets(l->proplist, prop_key));
         PyDict_SetItemString(prop_dict, prop_key, tmp_obj);
@@ -2550,47 +2080,42 @@ static void m_pa_sinklist_cb(pa_context *c,
         PyList_Append(channel_value, tmp_obj);
         Py_DecRef(tmp_obj);
     }
-    tmp_obj = Py_BuildValue("{sisnsO}", 
+    ret_channel_dict = Py_BuildValue("{sisnsO}", 
                             "can_balance", pa_channel_map_can_balance(&l->channel_map),
                             "channels", l->channel_map.channels,
                             "map", channel_value);
     Py_DecRef(channel_value);
 
-    PyDict_SetItem(self->output_channels, key, tmp_obj);
-    Py_DecRef(tmp_obj);
     // ports list
     ports = l->ports;   
-    for (i = 0; i < l->n_ports; i++) {                                  
-        port = ports[i];   
+    for (i = 0; i < l->n_ports; i++) {
+        port = ports[i];
         tmp_obj = Py_BuildValue("(ssi)",
                                 port->name,
                                 port->description,
                                 port->available);
         PyList_Append(port_list, tmp_obj); 
         Py_DecRef(tmp_obj);
-    }                
+    }
     // active port
     active_port = l->active_port;
     if (active_port) {
-        active_port_value = Py_BuildValue("(ssi)", 
+        ret_active_port_value = Py_BuildValue("(ssi)", 
                                           active_port->name,
                                           active_port->description, 
                                           active_port->available);
-        PyDict_SetItem(self->output_active_ports, key, active_port_value);
-        Py_DecRef(active_port_value);
     } else {
-        PyDict_SetItem(self->output_active_ports, key, Py_None);
+        ret_active_port_value = Py_None;
+        Py_INCREF(Py_None);
     }
     // volume list
     for (i = 0; i < l->volume.channels; i++) {
         tmp_obj = INT(l->volume.values[i]);
-        PyList_Append(volume_value, tmp_obj);
+        PyList_Append(ret_volume_value, tmp_obj);
         Py_DecRef(tmp_obj);
     }
-    PyDict_SetItem(self->output_volume, key, volume_value);
-    Py_DecRef(volume_value);
     PyObject *tmp_obj1 = PyBool_FromLong(l->mute);
-    tmp_obj = Py_BuildValue("{sssssisIsOsOsO}",
+    ret_dev_dict = Py_BuildValue("{sssssisIsOsOsO}",
                             "name", l->name,
                             "description", l->description,
                             "base_volume", l->base_volume,
@@ -2602,16 +2127,17 @@ static void m_pa_sinklist_cb(pa_context *c,
     Py_DecRef(port_list);
     Py_DecRef(prop_dict);
 
-    PyDict_SetItem(self->output_devices, key,tmp_obj);
-    Py_DecRef(tmp_obj);
-    Py_DecRef(key);
-
     PyObject *func = NULL;
     if (self->state_cb && PyDict_Check(self->state_cb) && ((func=PyDict_GetItemString(self->state_cb, "sink")) != NULL)) {
         if (PyCallable_Check(func)) {
             PyGILState_STATE gstate;
             gstate = PyGILState_Ensure();
-            PyEval_CallFunction(func, "(Oi)", self, l->index);
+            PyEval_CallFunction(func, "(OOOOOi)",
+                                self, ret_channel_dict,
+                                ret_active_port_value,
+                                ret_volume_value,
+                                ret_dev_dict,
+                                l->index);
             PyGILState_Release(gstate);
         }
     }
@@ -2631,10 +2157,9 @@ static void m_pa_sourcelist_cb(pa_context *c,
     pa_source_port_info **ports = NULL;                                         
     pa_source_port_info *port = NULL;      
     pa_source_port_info *active_port = NULL;
-    PyObject *key = NULL;
     PyObject *channel_value = NULL;
-    PyObject *active_port_value = NULL;
-    PyObject *volume_value = NULL;
+    PyObject *ret_active_port_value = NULL;
+    PyObject *ret_volume_value = NULL;
     PyObject *prop_dict = NULL;
     PyObject *port_list = NULL;
     int i = 0;                                                                  
@@ -2642,8 +2167,18 @@ static void m_pa_sourcelist_cb(pa_context *c,
     void *prop_state = NULL;
     PyObject *tmp_obj = NULL;
                                                                                 
-    if (eol > 0 || !l) {                                                              
-        return;                                                                 
+    PyObject *ret_channel_dict = NULL;
+    ret_channel_dict = PyDict_New();
+    if (!ret_channel_dict) {
+        printf("PyDict_New error");
+        return;
+    }
+
+    PyObject *ret_dev_dict = NULL;
+    ret_dev_dict = PyDict_New();
+    if (!ret_dev_dict) {
+        printf("PyDict_New error");
+        return;
     }
 
     channel_value = PyList_New(0);
@@ -2651,8 +2186,8 @@ static void m_pa_sourcelist_cb(pa_context *c,
         printf("PyList_New error");
         return;
     }
-    volume_value = PyList_New(0);
-    if (!volume_value) {
+    ret_volume_value = PyList_New(0);
+    if (!ret_volume_value) {
         printf("PyList_New error");
         return;
     }
@@ -2661,14 +2196,12 @@ static void m_pa_sourcelist_cb(pa_context *c,
         printf("PyDict_New error\n");
         return;
     }
-        
     port_list = PyList_New(0);
     if (!port_list) {
         printf("PyList_New error");
         return;
     }
                                                                                 
-    key = INT(l->index);
     while ((prop_key=pa_proplist_iterate(l->proplist, &prop_state))) {
         tmp_obj = STRING(pa_proplist_gets(l->proplist, prop_key));
         PyDict_SetItemString(prop_dict, prop_key,tmp_obj);
@@ -2680,14 +2213,12 @@ static void m_pa_sourcelist_cb(pa_context *c,
         PyList_Append(channel_value, tmp_obj);
         Py_DecRef(tmp_obj);
     }                                                                   
-    tmp_obj = Py_BuildValue("{sisnsO}",
+    ret_channel_dict = Py_BuildValue("{sisnsO}",
                             "can_balance", pa_channel_map_can_balance(&l->channel_map),
                             "channels", l->channel_map.channels,
                             "map", channel_value);
     Py_DecRef(channel_value);
 
-    PyDict_SetItem(self->input_channels, key, tmp_obj);
-    Py_DecRef(tmp_obj);
     // ports list
     ports = l->ports;                                                   
     for (i = 0; i < l->n_ports; i++) {                                  
@@ -2702,25 +2233,22 @@ static void m_pa_sourcelist_cb(pa_context *c,
     // active port
     active_port = l->active_port;                                       
     if (active_port) {
-        active_port_value = Py_BuildValue("(ssi)",
+        ret_active_port_value = Py_BuildValue("(ssi)",
                                           active_port->name,
                                           active_port->description,         
                                           active_port->available);               
-        PyDict_SetItem(self->input_active_ports, key, active_port_value);
-        Py_DecRef(active_port_value);
     } else {
-        PyDict_SetItem(self->input_active_ports, key, Py_None);
+        ret_active_port_value = Py_None;
+        Py_INCREF(Py_None);
     }
     // volume list
     for (i = 0; i < l->volume.channels; i++) {
         tmp_obj = INT(l->volume.values[i]);
-        PyList_Append(volume_value, tmp_obj);
+        PyList_Append(ret_volume_value, tmp_obj);
         Py_DecRef(tmp_obj);
     }
-    PyDict_SetItem(self->input_volume, key, volume_value);
-    Py_DecRef(volume_value);
     PyObject *tmp_obj1 = PyBool_FromLong(l->mute);
-    tmp_obj = Py_BuildValue("{sssssisIsOsOsO}",
+    ret_dev_dict = Py_BuildValue("{sssssisIsOsOsO}",
                             "name", l->name,
                             "description", l->description,
                             "base_volume", l->base_volume,
@@ -2732,16 +2260,17 @@ static void m_pa_sourcelist_cb(pa_context *c,
     Py_DecRef(port_list);
     Py_DecRef(prop_dict);
 
-    PyDict_SetItem(self->input_devices, key, tmp_obj);
-    Py_DecRef(tmp_obj);
-    Py_DecRef(key);
-
     PyObject *func = NULL;
     if (self->state_cb && PyDict_Check(self->state_cb) && ((func=PyDict_GetItemString(self->state_cb, "source")) != NULL)) {
         if (PyCallable_Check(func)) {
             PyGILState_STATE gstate;
             gstate = PyGILState_Ensure();
-            PyEval_CallFunction(func, "(Oi)", self, l->index);
+            PyEval_CallFunction(func, "(OOOOOi)",
+                                self, ret_channel_dict,
+                                ret_active_port_value,
+                                ret_volume_value,
+                                ret_dev_dict,
+                                l->index);
             PyGILState_Release(gstate);
         }
     }
@@ -2757,7 +2286,6 @@ static void m_pa_sinkinputlist_info_cb(pa_context *c,
 
     DeepinPulseAudioObject *self = userdata;
     
-    PyObject *key = NULL;
     PyObject *volume_value = NULL;
     PyObject *channel_value = NULL;
     PyObject *prop_dict = NULL;
@@ -2765,6 +2293,7 @@ static void m_pa_sinkinputlist_info_cb(pa_context *c,
     const char *prop_key;
     void *prop_state = NULL;
     PyObject *tmp_obj = NULL;
+    PyObject *retval = NULL;
 
     channel_value = PyList_New(0);
     if (!channel_value) {
@@ -2782,7 +2311,6 @@ static void m_pa_sinkinputlist_info_cb(pa_context *c,
         return;
     }
 
-    key = INT(l->index);
     // proplist
     while ((prop_key=pa_proplist_iterate(l->proplist, &prop_state))) {
         tmp_obj = STRING(pa_proplist_gets(l->proplist, prop_key));
@@ -2801,7 +2329,7 @@ static void m_pa_sinkinputlist_info_cb(pa_context *c,
         PyList_Append(volume_value, tmp_obj);
         Py_DecRef(tmp_obj);
     }
-    tmp_obj = Py_BuildValue("{sssisisisOsssssOsisOsisisi}",
+    retval = Py_BuildValue("{sssisisisOsssssOsisOsisisi}",
                             "name", l->name,
                             "owner_module", l->owner_module,
                             "client", l->client,
@@ -2819,16 +2347,12 @@ static void m_pa_sinkinputlist_info_cb(pa_context *c,
     Py_DecRef(prop_dict);
     Py_DecRef(volume_value);
 
-    PyDict_SetItem(self->playback_streams, key, tmp_obj);
-    Py_DecRef(tmp_obj);
-    Py_DecRef(key);
-
     PyObject *func = NULL;
     if (self->state_cb && PyDict_Check(self->state_cb) && ((func=PyDict_GetItemString(self->state_cb, "sinkinput")) != NULL)) {
         if (PyCallable_Check(func)) {
             PyGILState_STATE gstate;
             gstate = PyGILState_Ensure();
-            PyEval_CallFunction(func, "(Oi)", self, l->index);
+            PyEval_CallFunction(func, "(OOi)", self, retval, l->index);
             PyGILState_Release(gstate);
         }
     }
@@ -2844,7 +2368,6 @@ static void m_pa_sourceoutputlist_info_cb(pa_context *c,
 
     DeepinPulseAudioObject *self = userdata;
     
-    PyObject *key = NULL;
     PyObject *volume_value = NULL;
     PyObject *channel_value = NULL;
     PyObject *prop_dict = NULL;
@@ -2852,6 +2375,7 @@ static void m_pa_sourceoutputlist_info_cb(pa_context *c,
     const char *prop_key;
     void *prop_state = NULL;
     PyObject *tmp_obj = NULL;
+    PyObject *retval = NULL;
 
     channel_value = PyList_New(0);
     if (!channel_value) {
@@ -2869,7 +2393,6 @@ static void m_pa_sourceoutputlist_info_cb(pa_context *c,
         return;
     }
 
-    key = INT(l->index);
     // proplist
     while ((prop_key=pa_proplist_iterate(l->proplist, &prop_state))) {
         tmp_obj = STRING(pa_proplist_gets(l->proplist, prop_key));
@@ -2888,7 +2411,7 @@ static void m_pa_sourceoutputlist_info_cb(pa_context *c,
         PyList_Append(volume_value, tmp_obj);
         Py_DecRef(tmp_obj);
     }
-    tmp_obj = Py_BuildValue("{sssisisisOsssssOsisOsisisi}",
+    retval = Py_BuildValue("{sssisisisOsssssOsisOsisisi}",
                             "name", l->name,
                             "owner_module", l->owner_module,
                             "client", l->client,
@@ -2905,22 +2428,23 @@ static void m_pa_sourceoutputlist_info_cb(pa_context *c,
     Py_DecRef(channel_value);
     Py_DecRef(prop_dict);
     Py_DecRef(volume_value);
-    PyDict_SetItem(self->record_stream, key, tmp_obj);
-    Py_DecRef(tmp_obj);
-    Py_DecRef(key);
 
     PyObject *func = NULL;
     if (self->state_cb && PyDict_Check(self->state_cb) && ((func=PyDict_GetItemString(self->state_cb, "sourceoutput")) != NULL)) {
         if (PyCallable_Check(func)) {
             PyGILState_STATE gstate;
             gstate = PyGILState_Ensure();
-            PyEval_CallFunction(func, "(Oi)", self, l->index);
+            PyEval_CallFunction(func, "(OOi)", self, retval, l->index);
             PyGILState_Release(gstate);
         }
     }
 }
 
-static void m_pa_event_removed_cb(DeepinPulseAudioObject *self, uint32_t index, const char *key)
+//****************************************
+// remove event callback
+static void m_pa_event_removed_cb(DeepinPulseAudioObject *self,
+                                  uint32_t index,
+                                  const char *key)
 {
     if (!self || !key) 
         return;
@@ -2934,360 +2458,6 @@ static void m_pa_event_removed_cb(DeepinPulseAudioObject *self, uint32_t index, 
     gstate = PyGILState_Ensure();
     PyEval_CallFunction(callback, "(Oi)", self, index);
     PyGILState_Release(gstate);
-}
-
-static void m_pa_sink_new_cb(pa_context *c,
-                             const pa_sink_info *info,
-                             int eol,
-                             void *userdata)
-{
-    if (!c || !info || eol > 0 || !userdata) 
-        return;
-
-    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
-
-    if (self->sink_new_cb) {
-        PyGILState_STATE gstate;
-        gstate = PyGILState_Ensure();
-        PyEval_CallFunction(self->sink_new_cb, "(Oi)", self, info->index);
-        PyGILState_Release(gstate);
-    }
-}
-
-static void m_pa_sink_changed_cb(pa_context *c, 
-                                 const pa_sink_info *info, 
-                                 int eol, 
-                                 void *userdata) 
-{
-    if (!c || !info || eol > 0 || !userdata) {
-        return;
-    }
-
-    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
-    printf("sink changed: %d\n", info->index);
-
-    if (self->sink_changed_cb) {
-        PyGILState_STATE gstate;
-        gstate = PyGILState_Ensure();
-        PyEval_CallFunction(self->sink_changed_cb, "(Oi)", self, info->index);
-        PyGILState_Release(gstate);
-    }
-}
-
-static void m_pa_sink_removed_cb(DeepinPulseAudioObject *self, uint32_t idx)
-{
-    if (!self) 
-        return;
-
-    PyObject *key = NULL;
-    key = INT(idx);
-    if (self->output_active_ports && PyDict_Contains(self->output_active_ports, key)) {
-        PyDict_DelItem(self->output_active_ports, key);
-    }
-    if (self->output_channels && PyDict_Contains(self->output_channels, key)) {
-        PyDict_DelItem(self->output_channels, key);
-    }
-    if (self->output_devices && PyDict_Contains(self->output_devices, key)) {
-        PyDict_DelItem(self->output_devices, key);
-    }
-    if (self->output_mute && PyDict_Contains(self->output_mute, key)) {
-        PyDict_DelItem(self->output_mute, key);
-    }
-    if (self->output_ports && PyDict_Contains(self->output_ports, key)) {
-        PyDict_DelItem(self->output_ports, key);
-    }
-    if (self->output_volume && PyDict_Contains(self->output_volume, key)) {
-        PyDict_DelItem(self->output_volume, key);
-    }
-    Py_DecRef(key);
-    if (self->sink_removed_cb) {
-        PyGILState_STATE gstate;
-        gstate = PyGILState_Ensure();
-        PyEval_CallFunction(self->sink_removed_cb, "(Oi)", self, idx);
-        PyGILState_Release(gstate);
-    }
-}
-
-static void m_pa_source_new_cb(pa_context *c,                               
-                                 const pa_source_info *info,                    
-                                 int eol,                                       
-                                 void *userdata)                                
-{                                                                               
-    if (!c || !info || eol > 0 || !userdata)                                    
-        return;                                                                 
-
-    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;         
-
-    if (self->source_new_cb) {
-        PyGILState_STATE gstate;
-        gstate = PyGILState_Ensure();
-        PyEval_CallFunction(self->source_new_cb, "(Oi)", self, info->index);
-        PyGILState_Release(gstate);
-    }
-}
-
-static void m_pa_source_changed_cb(pa_context *c,
-                                 const pa_source_info *info,
-                                 int eol,
-                                 void *userdata)
-{
-    if (!c || !info || eol > 0 || !userdata) 
-        return;
-
-    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
-
-    if (self->source_changed_cb) {
-        PyGILState_STATE gstate;
-        gstate = PyGILState_Ensure();
-        PyEval_CallFunction(self->source_changed_cb, "(Oi)", self, info->index);
-        PyGILState_Release(gstate);
-    }
-}
-
-static void m_pa_source_removed_cb(DeepinPulseAudioObject *self, uint32_t idx)
-{
-    if (!self) 
-        return;
-
-    PyObject *key = NULL;
-    key = INT(idx);
-    if (self->input_active_ports && PyDict_Contains(self->input_active_ports, key)) {
-        PyDict_DelItem(self->input_active_ports, key);
-    }
-    if (self->input_channels && PyDict_Contains(self->input_channels, key)) {
-        PyDict_DelItem(self->input_channels, key);
-    }
-    if (self->input_devices && PyDict_Contains(self->input_devices, key)) {
-        PyDict_DelItem(self->input_devices, key);
-    }
-    if (self->input_mute && PyDict_Contains(self->input_mute, key)) {
-        PyDict_DelItem(self->input_mute, key);
-    }
-    if (self->input_ports && PyDict_Contains(self->input_ports, key)) {
-        PyDict_DelItem(self->input_ports, key);
-    }
-    if (self->input_volume && PyDict_Contains(self->input_volume, key)) {
-        PyDict_DelItem(self->input_volume, key);
-    }
-    Py_DecRef(key);
-    if (self->source_removed_cb) {
-        PyGILState_STATE gstate;
-        gstate = PyGILState_Ensure();
-        PyEval_CallFunction(self->source_removed_cb, "(Oi)", self, idx);
-        PyGILState_Release(gstate);
-    }
-}
-
-static void m_pa_sink_input_new_cb(pa_context *c,
-                                   const pa_sink_input_info *info,
-                                   int eol,
-                                   void *userdata)
-{
-    if (!c || !info || eol > 0 || !userdata) 
-        return;
-
-    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
-
-    if (self->sink_input_new_cb) {
-        PyGILState_STATE gstate;
-        gstate = PyGILState_Ensure();
-        PyEval_CallFunction(self->sink_input_new_cb, "(Oi)", self, info->index);
-        PyGILState_Release(gstate);
-    }
-}
-
-static void m_pa_sink_input_changed_cb(pa_context *c,                               
-                                       const pa_sink_input_info *info,                
-                                       int eol,                                       
-                                       void *userdata)                                
-{                                                                                   
-    if (!c || !info || eol > 0 || !userdata)                                        
-        return;                                                                     
-                                                                                    
-    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;             
-
-    if (self->sink_input_changed_cb) {
-        PyGILState_STATE gstate;
-        gstate = PyGILState_Ensure();
-        PyEval_CallFunction(self->sink_input_changed_cb, "(Oi)", self, info->index);               
-        PyGILState_Release(gstate);
-    }
-}
-
-static void m_pa_sink_input_removed_cb(DeepinPulseAudioObject *self, uint32_t idx)
-{
-    if (!self) 
-        return;
-
-    /*PyObject *key = NULL;*/
-    /*key = INT(idx);*/
-    /*if (self->playback_streams && PyDict_Contains(self->playback_streams, key)) {*/
-        /*PyDict_DelItem(self->playback_streams, key);*/
-    /*}*/
-    /*Py_DecRef(key);*/
-    if (self->sink_input_removed_cb) {
-        PyGILState_STATE gstate;
-        gstate = PyGILState_Ensure();
-        PyEval_CallFunction(self->sink_input_removed_cb, "(Oi)", self, idx);
-        PyGILState_Release(gstate);
-    }
-}
-
-static void m_pa_source_output_new_cb(pa_context *c,
-                                        const pa_source_output_info *info,
-                                        int eol,
-                                        void *userdata)
-{
-    if (!c || !info || eol > 0 || !userdata) 
-        return;
-
-    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
-
-    if (self->source_output_new_cb) {
-        PyGILState_STATE gstate;
-        gstate = PyGILState_Ensure();
-        PyEval_CallFunction(self->source_output_new_cb, "(Oi)", self, info->index);
-        PyGILState_Release(gstate);
-    }
-}
-
-static void m_pa_source_output_changed_cb(pa_context *c,                                
-                                          const pa_source_output_info *info,          
-                                          int eol,                                    
-                                          void *userdata)                             
-{                                                                                   
-    if (!c || !info || eol > 0 || !userdata)                                        
-        return;                                                                     
-                                                                                    
-    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;             
-
-    if (self->source_output_changed_cb) {
-        PyGILState_STATE gstate;
-        gstate = PyGILState_Ensure();
-        PyEval_CallFunction(self->source_output_changed_cb, "(Oi)", self, info->index);    
-        PyGILState_Release(gstate);
-    }
-}
-
-static void m_pa_source_output_removed_cb(DeepinPulseAudioObject *self, uint32_t idx)
-{
-    if (!self) 
-        return;
-
-    /*PyObject *key = NULL;*/
-    /*key = INT(idx);*/
-    /*if (self->record_stream && PyDict_Contains(self->record_stream, key)) {*/
-        /*PyDict_DelItem(self->record_stream, key);*/
-    /*}*/
-    /*Py_DecRef(key);*/
-    if (self->source_output_removed_cb) {
-        PyGILState_STATE gstate;
-        gstate = PyGILState_Ensure();
-        PyEval_CallFunction(self->source_output_removed_cb, "(Oi)", self, idx);
-        PyGILState_Release(gstate);
-    }
-}
-
-static void m_pa_server_new_cb(pa_context *c,
-                                 const pa_server_info *info,
-                                 void *userdata)
-{
-    if (!c || !info || !userdata) 
-        return;
-
-    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
-
-    if (self->server_new_cb) {
-        PyGILState_STATE gstate;
-        gstate = PyGILState_Ensure();
-        PyEval_CallFunction(self->server_new_cb, "(O)", self);
-        PyGILState_Release(gstate);
-    }
-}
-
-static void m_pa_server_changed_cb(pa_context *c,                                   
-                                 const pa_server_info *info,                    
-                                 void *userdata)                                    
-{                                                                                   
-    if (!c || !info || !userdata)                                                   
-        return;                                                                     
-                                                                                    
-    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;             
-
-    if (self->server_changed_cb) {
-        PyGILState_STATE gstate;
-        gstate = PyGILState_Ensure();
-        PyEval_CallFunction(self->server_changed_cb, "(O)", self);                         
-        PyGILState_Release(gstate);
-    }
-}
-
-static void m_pa_server_removed_cb(DeepinPulseAudioObject *self)
-{
-    if (!self) 
-        return;
-
-    if (self->server_removed_cb) {
-        PyGILState_STATE gstate;
-        gstate = PyGILState_Ensure();
-        PyEval_CallFunction(self->server_removed_cb, "(O)", self);
-        PyGILState_Release(gstate);
-    }
-}
-
-static void m_pa_card_new_cb(pa_context *c,
-                               const pa_card_info *info,
-                               int eol,
-                               void *userdata)
-{
-    if (!c || !info || eol > 0 || !userdata) 
-        return;
-
-    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
-
-    if (self->card_new_cb) {
-        PyGILState_STATE gstate;
-        gstate = PyGILState_Ensure();
-        PyEval_CallFunction(self->card_new_cb, "(Oi)", self, info->index);
-        PyGILState_Release(gstate);
-    }
-}
-
-static void m_pa_card_changed_cb(pa_context *c,                                         
-                               const pa_card_info *info,                            
-                               int eol,                                             
-                               void *userdata)                                      
-{                                                                                   
-    if (!c || !info || eol > 0 || !userdata)                                        
-        return;                                                                     
-                                                                                    
-    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;             
-
-    if (self->card_changed_cb) {
-        PyGILState_STATE gstate;
-        gstate = PyGILState_Ensure();
-        PyEval_CallFunction(self->card_changed_cb, "(Oi)", self, info->index);             
-        PyGILState_Release(gstate);
-    }
-}
-
-static void m_pa_card_removed_cb(DeepinPulseAudioObject *self, uint32_t idx)
-{
-    if (!self) 
-        return;
-
-    /*PyObject *key = NULL;*/
-    /*key = INT(idx);*/
-    /*if (self->card_devices && PyDict_Contains(self->card_devices, key)) {*/
-        /*PyDict_DelItem(self->card_devices, key);*/
-    /*}*/
-    /*Py_DecRef(key);*/
-    if (self->card_removed_cb) {
-        PyGILState_STATE gstate;
-        gstate = PyGILState_Ensure();
-        PyEval_CallFunction(self->card_removed_cb, "(Oi)", self, idx);
-        PyGILState_Release(gstate);
-    }
 }
 
 static void m_pa_context_subscribe_cb(pa_context *c,                           
@@ -3381,7 +2551,7 @@ static void m_pa_context_subscribe_cb(pa_context *c,
 }
 
 static void m_context_state_cb(pa_context *c, void *userdata) 
-{                
+{
     if (!c || !userdata) 
         return;
 
@@ -3426,6 +2596,7 @@ static void m_context_state_cb(pa_context *c, void *userdata)
                 printf("pa_context_get_server_info() failed");
                 return;
             }
+            pa_operation_unref(pa_op);
 
             if (!(pa_op = pa_context_get_card_info_list(c, m_pa_cardlist_cb, self))) {
                 printf("pa_context_get_card_info_list() failed");
