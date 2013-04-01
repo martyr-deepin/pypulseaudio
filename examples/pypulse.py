@@ -21,7 +21,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 try:
-    import deepin_pulseaudio_small as deepin_pulseaudio
+    import deepin_pulseaudio
 except ImportError:
     print "----------Please Install Deepin Pulseaudio Python Binding----------"   
     print "git clone git@github.com:linuxdeepin/pypulseaudio.git"
