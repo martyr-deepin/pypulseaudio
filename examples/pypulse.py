@@ -21,7 +21,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 try:
-    import deepin_pulseaudio
+    import deepin_pulseaudio_small as deepin_pulseaudio
 except ImportError:
     print "----------Please Install Deepin Pulseaudio Python Binding----------"   
     print "git clone git@github.com:linuxdeepin/pypulseaudio.git"
@@ -31,25 +31,55 @@ except ImportError:
 MAX_VOLUME_VALUE = deepin_pulseaudio.VOLUME_UI_MAX
 NORMAL_VOLUME_VALUE = deepin_pulseaudio.VOLUME_NORM
 
+server_info = {}
+card_devices = {}
+
+output_devices = {}
+output_channels = {}
+output_active_ports = {}
+output_volumes = {}
+
+input_devices = {}
+input_channels = {}
+input_active_ports = {}
+input_volumes = {}
+
+playback_info = {}
+record_info = {}
+
 PULSE = deepin_pulseaudio.new()
-PULSE.get_devices()
-PULSE.connect_to_pulse()
 
 def get_volume_balance(channel_num, volume_list, channel_list):
     return deepin_pulseaudio.volume_get_balance(channel_num, volume_list, channel_list)
 
+def get_fallback_sink_name():
+    if 'fallback_sink' in server_info:
+        return server_info['fallback_sink']
+    else:
+        return None
+    
 def get_fallback_sink_index():
-    name = PULSE.get_fallback_sink()
-    dev = PULSE.get_output_devices()
-    for key in dev.keys():
-        if name == dev[key]['name']:
+    if 'fallback_sink' in server_info:
+        name = server_info['fallback_sink']
+    else:
+        return None
+    for key in output_devices.keys():
+        if name == output_devices[key]['name']:
             return key
     return None
 
+def get_fallback_source_name():
+    if 'fallback_source' in server_info:
+        return server_info['fallback_source']
+    else:
+        return None
+    
 def get_fallback_source_index():
-    name = PULSE.get_fallback_source()
-    dev = PULSE.get_input_devices()
-    for key in dev.keys():
-        if name == dev[key]['name']:
+    if 'fallback_source' in server_info:
+        name = server_info['fallback_source']
+    else:
+        return None
+    for key in input_devices.keys():
+        if name == output_devices[key]['name']:
             return key
     return None

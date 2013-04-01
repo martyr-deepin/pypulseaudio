@@ -414,6 +414,7 @@ static PyObject *m_pa_volume_get_balance(PyObject *self, PyObject *args)
         volume = PyList_AsTuple(volume);
     }
     if (!PyTuple_Check(volume)) {
+        printf("volume is not Tuple\n");
         Py_RETURN_NONE;
     }
 
@@ -421,6 +422,7 @@ static PyObject *m_pa_volume_get_balance(PyObject *self, PyObject *args)
         channel = PyList_AsTuple(channel);
     }
     if (!PyTuple_Check(channel)) {
+        printf("channel is not Tuple\n");
         Py_RETURN_NONE;
     }
 
@@ -431,14 +433,10 @@ static PyObject *m_pa_volume_get_balance(PyObject *self, PyObject *args)
 
     size_volume = PyTuple_Size(volume);
     size_channel = PyTuple_Size(channel);
-    if (channel_num < size_volume) {
-        channel_num = size_volume;
-    }
-    if (channel_num < size_channel) {
-        channel_num = size_channel;
-    }
-    for (i = 0; i < channel_num; i++) {
+    for (i = 0; i < size_volume; i++) {
         cvolume.values[i] = PyInt_AsUnsignedLongMask(PyTuple_GetItem(volume, i));
+    }
+    for (i = 0; i < size_channel; i++) {
         channel_map.map[i] = PyInt_AsUnsignedLongMask(PyTuple_GetItem(channel, i));
     }
     balance = PyFloat_FromDouble(pa_cvolume_get_balance(&cvolume, &channel_map));
@@ -982,7 +980,6 @@ static void m_pa_server_info_cb(pa_context *c,
     if (!c || !i || !userdata) 
         return;
     
-    printf("pa_server_info_cb\n");
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
     PyObject *tmp_obj = NULL;
     PyObject *server_dict = NULL;
