@@ -46,41 +46,7 @@ typedef struct {
     pa_context *pa_ctx;
     pa_mainloop_api *pa_mlapi;
     PyObject *state_cb; /* callback */                                       
-    PyObject *event_cb;
-    PyObject *sink_new_cb;
-    PyObject *sink_changed_cb;                                                  
-    PyObject *sink_removed_cb;                                                  
-    PyObject *source_new_cb;                                                    
-    PyObject *source_changed_cb;                                                
-    PyObject *source_removed_cb;                                                
-    PyObject *card_new_cb;                                                      
-    PyObject *card_changed_cb;                                                  
-    PyObject *card_removed_cb;                                                  
-    PyObject *server_new_cb;                                                    
-    PyObject *server_changed_cb;                                                
-    PyObject *server_removed_cb;                                                
-    PyObject *sink_input_new_cb;                                                
-    PyObject *sink_input_changed_cb;                                            
-    PyObject *sink_input_removed_cb;                                            
-    PyObject *source_output_new_cb;                                             
-    PyObject *source_output_changed_cb;                                         
-    PyObject *source_output_removed_cb;
-    PyObject *server_info;  /* data */
-    PyObject *card_devices;
-    PyObject *input_devices;
-    PyObject *output_devices;
-    PyObject *input_ports;
-    PyObject *output_ports;
-    PyObject *input_channels;
-    PyObject *output_channels;
-    PyObject *input_active_ports;
-    PyObject *output_active_ports;
-    PyObject *input_mute;
-    PyObject *output_mute;
-    PyObject *input_volume;
-    PyObject *output_volume;
-    PyObject *playback_streams;
-    PyObject *record_stream;
+    PyObject *event_cb; /* event callback */
 } DeepinPulseAudioObject;
 
 static PyObject *m_deepin_pulseaudio_object_constants = NULL;
@@ -375,7 +341,6 @@ PyMODINIT_FUNC initdeepin_pulseaudio_small()
     m_deepin_pulseaudio_object_constants = PyDict_New();
 }
 
-// TODO 删除一些对象
 static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object() 
 {
     DeepinPulseAudioObject *self = NULL;
@@ -391,71 +356,12 @@ static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object()
     
     self->state_cb = NULL;
     self->event_cb = NULL;
-    self->server_info = NULL;
-    self->card_devices = NULL;
-    self->input_devices = NULL;
-    self->output_devices = NULL;
-    self->input_ports = NULL;
-    self->output_ports = NULL;
-    self->input_channels = NULL;
-    self->output_channels = NULL;
-    self->input_active_ports = NULL;
-    self->output_active_ports = NULL;
-    self->input_mute = NULL;
-    self->output_mute = NULL;
-    self->input_volume = NULL;
-    self->output_volume = NULL;
-    self->playback_streams = NULL;
-    self->record_stream = NULL;
 
     self->pa_ml = NULL;                                                         
     self->pa_ctx = NULL;                                                        
     self->pa_mlapi = NULL;                                                      
                                                                                 
-    self->sink_new_cb = NULL;                                                   
-    self->sink_changed_cb = NULL;                                               
-    self->sink_removed_cb = NULL;                                               
-    self->source_new_cb = NULL;                                                 
-    self->source_changed_cb = NULL;                                             
-    self->source_removed_cb = NULL;                                             
-    self->card_new_cb = NULL;                                                   
-    self->card_changed_cb = NULL;                                               
-    self->card_removed_cb = NULL;                                               
-    self->server_new_cb = NULL;                                                 
-    self->server_changed_cb = NULL;                                             
-    self->server_removed_cb = NULL;                                             
-    self->sink_input_new_cb = NULL;                                             
-    self->sink_input_changed_cb = NULL;                                         
-    self->sink_input_removed_cb = NULL;                                         
-    self->source_output_new_cb = NULL;                                          
-    self->source_output_changed_cb = NULL;                                      
-    self->source_output_removed_cb = NULL;
-
     return self;
-}
-
-static void m_pa_state_cb(pa_context *c, void *userdata) 
-{
-    pa_context_state_t state;                                               
-    int *pa_ready = userdata;                                               
-                                                                                
-    state = pa_context_get_state(c);                                        
-    switch (state) {                                                       
-        // There are just here for reference                            
-        case PA_CONTEXT_UNCONNECTED:                                    
-        case PA_CONTEXT_CONNECTING:                                     
-        case PA_CONTEXT_AUTHORIZING:                                    
-        case PA_CONTEXT_SETTING_NAME:                                   
-        default:                                                        
-            break;                                                  
-        case PA_CONTEXT_FAILED:                                         
-        case PA_CONTEXT_TERMINATED:                                     
-            *pa_ready = 2;                                          
-            break;                                                  
-        case PA_CONTEXT_READY:                                          
-            *pa_ready = 1;                                          
-            break;                                                  
-    }
 }
 
 static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args) 
@@ -468,116 +374,6 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
 
     self->event_cb = PyDict_New();
     if (!self->event_cb) {
-        ERROR("PyDict_New error");
-        m_delete(self);
-        return NULL;
-    }
-
-    self->server_info = PyDict_New();
-    if (!self->server_info) {
-        ERROR("PyDict_New error");
-        m_delete(self);
-        return NULL;
-    }
-
-    self->card_devices = PyDict_New();
-    if (!self->card_devices) {
-        ERROR("PyDict_New error");
-        m_delete(self);
-        return NULL;
-    }
-
-    self->input_devices = PyDict_New();
-    if (!self->input_devices) {
-        ERROR("PyDict_New error");
-        m_delete(self);
-        return NULL;
-    }
-
-    self->output_devices = PyDict_New();
-    if (!self->output_devices) {
-        ERROR("PyDict_New error");
-        m_delete(self);
-        return NULL;
-    }
-
-    self->input_ports = PyDict_New();
-    if (!self->input_ports) {
-        printf("PyDict_New error");
-        return NULL;
-    }
-
-    self->output_ports = PyDict_New();
-    if (!self->output_ports) {
-        printf("PyDict_New error");
-        return NULL;
-    }
-
-    self->input_channels = PyDict_New();
-    if (!self->input_channels) {
-        ERROR("PyDict_New error");
-        m_delete(self);
-        return NULL;
-    }
-
-    self->output_channels = PyDict_New();
-    if (!self->output_channels) {
-        ERROR("PyDict_New error");
-        m_delete(self);
-        return NULL;
-    }
-
-    self->input_active_ports = PyDict_New();
-    if (!self->input_active_ports) {
-        ERROR("PyDict_New error");
-        m_delete(self);
-        return NULL;
-    }
-
-    self->output_active_ports = PyDict_New();
-    if (!self->output_active_ports) {
-        ERROR("PyDict_New error");
-        m_delete(self);
-        return NULL;
-    }
-
-    self->input_mute = PyDict_New();
-    if (!self->input_mute) {
-        ERROR("PyDict_New error");
-        m_delete(self);
-        return NULL;
-    }
-
-    self->output_mute = PyDict_New();                                            
-    if (!self->output_mute) {                                                    
-        ERROR("PyDict_New error");                                              
-        m_delete(self);                                                         
-        return NULL;                                                            
-    } 
-
-    self->input_volume = PyDict_New();                                         
-    if (!self->input_volume) {                                                 
-        ERROR("PyDict_New error");                                              
-        m_delete(self);                                                         
-        return NULL;                                                            
-    }
-
-    self->output_volume = PyDict_New();
-    if (!self->output_volume) {
-        ERROR("PyDict_New error");
-        m_delete(self);
-        return NULL;
-    }
-
-    self->playback_streams = PyDict_New();
-    if (!self->playback_streams) {
-        ERROR("PyDict_New error");
-        m_delete(self);
-        return NULL;
-    }
-
-    self->record_stream = PyDict_New();
-    if (!self->record_stream) {
         ERROR("PyDict_New error");
         m_delete(self);
         return NULL;
@@ -650,88 +446,10 @@ static PyObject *m_pa_volume_get_balance(PyObject *self, PyObject *args)
     return balance;
 }
 
-/* FIXME: fuzzy ... more object wait for destruction */
-// TODO 删除一些对象
 static PyObject *m_delete(DeepinPulseAudioObject *self) 
 {
-    if (self->server_info) {
-        Py_XDECREF(self->server_info);
-        self->server_info = NULL;
-    }
-
-    if (self->card_devices) {
-        Py_XDECREF(self->card_devices);
-        self->card_devices = NULL;
-    }
-
-    if (self->input_devices) {
-        Py_XDECREF(self->input_devices);
-        self->input_devices = NULL;
-    }
-
-    if (self->output_devices) {
-        Py_XDECREF(self->output_devices);
-        self->output_devices = NULL;
-    }
-
-    if (self->input_ports) {
-        Py_XDECREF(self->input_ports);
-        self->input_ports = NULL;
-    }
-
-    if (self->output_ports) {
-        Py_XDECREF(self->output_ports);
-        self->output_ports = NULL;
-    }
-
-    if (self->input_channels) {
-        Py_XDECREF(self->input_channels);
-        self->input_channels = NULL;
-    }
-
-    if (self->output_channels) {
-        Py_XDECREF(self->output_channels);
-        self->output_channels = NULL;
-    }
-
-    if (self->input_active_ports) {
-        Py_XDECREF(self->input_active_ports);
-        self->input_active_ports = NULL;
-    }
-
-    if (self->output_active_ports) {
-        Py_XDECREF(self->output_active_ports);
-        self->output_active_ports = NULL;
-    }
-
-    if (self->input_mute) {
-        Py_XDECREF(self->input_mute);
-        self->input_mute = NULL;
-    }
-
-    if (self->output_mute) {
-        Py_XDECREF(self->output_mute);
-        self->output_mute = NULL;
-    }
-
-    if (self->input_volume) {
-        Py_XDECREF(self->input_volume);
-        self->input_volume = NULL;
-    }
-
-    if (self->output_volume) {
-        Py_XDECREF(self->output_volume);
-        self->output_volume = NULL;
-    }
-
-    if (self->playback_streams) {
-        Py_XDECREF(self->playback_streams);
-        self->playback_streams = NULL;
-    }
-
-    if (self->record_stream) {
-        Py_XDECREF(self->record_stream);
-        self->record_stream = NULL;
+    if (self->event_cb) {
+        Py_XDECREF(self->event_cb);
     }
 
     if (self->pa_ctx) {                                                         
@@ -842,146 +560,58 @@ static PyObject *m_get_record_streams(DeepinPulseAudioObject *self)
 static PyObject *m_set_output_active_port(DeepinPulseAudioObject *self, 
                                           PyObject *args) 
 {
+    if (!self->pa_ctx || pa_context_get_state(self->pa_ctx) != PA_CONTEXT_READY) {
+        RETURN_FALSE;
+    }
+
     int index = 0;
     char *port = NULL;
-    pa_mainloop *pa_ml = NULL;                                                         
-    pa_mainloop_api *pa_mlapi = NULL;                                                  
-    pa_context *pa_ctx = NULL;                                                         
-    pa_operation *pa_op = NULL;   
-    int state = 0;
-    int pa_ready = 0;
 
     if (!PyArg_ParseTuple(args, "ns", &index, &port)) {
         ERROR("invalid arguments to set_output_active_port");
         return NULL;
     }
-                                                                                
-    pa_ml = pa_mainloop_new();                                                  
-    pa_mlapi = pa_mainloop_get_api(pa_ml);                                      
-    pa_ctx = pa_context_new(pa_mlapi, PACKAGE);                                
-                                                                                
-    pa_context_connect(pa_ctx, NULL, 0, NULL);
-    pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);            
-
-    for (;;) {                                                                  
-        if (pa_ready == 0) {                                                    
-            pa_mainloop_iterate(pa_ml, 1, NULL);                                
-            continue;                                                           
-        }                                                                       
-        if (pa_ready == 2) {                                                    
-            pa_context_disconnect(pa_ctx);                                      
-            pa_context_unref(pa_ctx);                                           
-            pa_mainloop_free(pa_ml);                                            
-            Py_INCREF(Py_False);                                                    
-            return Py_False;                                                    
-        }                                                                       
-        switch (state) {                                                        
-            case 0:
-                pa_op = pa_context_set_sink_port_by_index(pa_ctx, 
-                                                          index, 
-                                                          port, 
-                                                          NULL, 
-                                                          NULL);                                       
-                state++;                                                        
-                break;                                                          
-            case 1:                                                             
-                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {                    
-                    pa_operation_unref(pa_op);                                  
-                    pa_context_disconnect(pa_ctx);                              
-                    pa_context_unref(pa_ctx);                                   
-                    pa_mainloop_free(pa_ml);                                    
-                    Py_INCREF(Py_True);                                             
-                    return Py_True;                                             
-                }                                                               
-                break;                                                          
-            default:                                                            
-                Py_INCREF(Py_False);                                                
-                return Py_False;                                                
-        }                                                                       
-        pa_mainloop_iterate(pa_ml, 1, NULL);                                    
-    }                                    
-
-    Py_INCREF(Py_False);
-    return Py_False;
+    pa_operation *pa_op = NULL;
+    if (!(pa_op = pa_context_set_sink_port_by_index(self->pa_ctx, index, port, NULL, NULL))) {
+        printf("pa_context_set_sink_port_by_index() failed");
+        RETURN_FALSE;
+    }
+    pa_operation_unref(pa_op);
+    RETURN_TRUE;
 }
 
 static PyObject *m_set_input_active_port(DeepinPulseAudioObject *self,         
                                          PyObject *args)                       
 {                                                                               
+    if (!self->pa_ctx || pa_context_get_state(self->pa_ctx) != PA_CONTEXT_READY) {
+        RETURN_FALSE;
+    }
     int index = 0;                                                              
     char *port = NULL;                                                          
-    pa_mainloop *pa_ml = NULL;                                                      
-    pa_mainloop_api *pa_mlapi = NULL;                                               
-    pa_context *pa_ctx = NULL;                                                      
-    pa_operation *pa_op = NULL;                                                 
-    int state = 0;                                                              
-    int pa_ready = 0;                                                           
                                                                                 
     if (!PyArg_ParseTuple(args, "ns", &index, &port)) {                         
         ERROR("invalid arguments to set_input_active_port");                   
         return NULL;                                                            
     }                                                                           
                                                                                 
-    pa_ml = pa_mainloop_new();                                                  
-    pa_mlapi = pa_mainloop_get_api(pa_ml);                                      
-    pa_ctx = pa_context_new(pa_mlapi, PACKAGE);                                
-                                                                                
-    pa_context_connect(pa_ctx, NULL, 0, NULL);                                  
-    pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);            
-                                                                                
-    for (;;) {                                                                  
-        if (pa_ready == 0) {
-            pa_mainloop_iterate(pa_ml, 1, NULL);                                
-            continue;                                                           
-        }                                                                       
-        if (pa_ready == 2) {                                                    
-            pa_context_disconnect(pa_ctx);                                      
-            pa_context_unref(pa_ctx);                                           
-            pa_mainloop_free(pa_ml);                                            
-            Py_INCREF(Py_False);                                                
-            return Py_False;                                                    
-        }                                                                       
-        switch (state) {                                                        
-            case 0:                                                             
-                pa_op = pa_context_set_source_port_by_index(pa_ctx,               
-                                                            index,                
-                                                            port,                 
-                                                            NULL,                 
-                                                            NULL);                
-                state++;                                                        
-                break;                                                          
-            case 1:                                                             
-                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {       
-                    pa_operation_unref(pa_op);                                  
-                    pa_context_disconnect(pa_ctx);                              
-                    pa_context_unref(pa_ctx);                                   
-                    pa_mainloop_free(pa_ml);                                    
-                    Py_INCREF(Py_True);                                         
-                    return Py_True;                                             
-                }                                                               
-                break;                                                          
-            default:                                                            
-                Py_INCREF(Py_False);                                            
-                return Py_False;                                                
-        }                                                                       
-        pa_mainloop_iterate(pa_ml, 1, NULL);                                    
-    }                                                                           
-                                                                                
-    Py_INCREF(Py_False);                                                        
-    return Py_False;                                                            
+    pa_operation *pa_op = NULL;
+    if (!(pa_op = pa_context_set_source_port_by_index(self->pa_ctx, index, port, NULL, NULL))) {
+        printf("pa_context_set_source_port_by_index() failed");
+        RETURN_FALSE;
+    }
+    pa_operation_unref(pa_op);
+    RETURN_TRUE;
 }
 
 static PyObject *m_set_output_mute(DeepinPulseAudioObject *self, 
                                    PyObject *args) 
 {
+    if (!self->pa_ctx || pa_context_get_state(self->pa_ctx) != PA_CONTEXT_READY) {
+        RETURN_FALSE;
+    }
+
     int index = 0;
     PyObject *mute = NULL;
-    pa_mainloop *pa_ml = NULL;                                                         
-    pa_mainloop_api *pa_mlapi = NULL;                                                  
-    pa_context *pa_ctx = NULL;                                                         
-    pa_operation *pa_op = NULL;   
-    int state = 0;
-    int pa_ready = 0;
 
     if (!PyArg_ParseTuple(args, "nO", &index, &mute)) {
         ERROR("invalid arguments to set_output_mute");
@@ -989,67 +619,28 @@ static PyObject *m_set_output_mute(DeepinPulseAudioObject *self,
     }
     
     if (!PyBool_Check(mute)) {                                                 
-        Py_INCREF(Py_False);                                                    
-        return Py_False;                                                        
+        RETURN_FALSE;
     } 
                                                                             
-    pa_ml = pa_mainloop_new();                                                  
-    pa_mlapi = pa_mainloop_get_api(pa_ml);                                      
-    pa_ctx = pa_context_new(pa_mlapi, PACKAGE);                                
-                                                                                
-    pa_context_connect(pa_ctx, NULL, 0, NULL);
-    pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);            
-
-    for (;;) {                                                                  
-        if (pa_ready == 0) {                                                    
-            pa_mainloop_iterate(pa_ml, 1, NULL);                                
-            continue;                                                           
-        }                                                                       
-        if (pa_ready == 2) {                                                    
-            pa_context_disconnect(pa_ctx);                                      
-            pa_context_unref(pa_ctx);                                           
-            pa_mainloop_free(pa_ml);                                            
-            Py_INCREF(Py_False);                                                    
-            return Py_False;                                                    
-        }                                                                       
-        switch (state) {                                                        
-            case 0:
-                pa_op = pa_context_set_sink_mute_by_index(pa_ctx, 
-                    index, mute == Py_True ? 1 : 0, NULL, NULL);                                       
-                state++;                                                        
-                break;                                                          
-            case 1:                                                             
-                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {                    
-                    pa_operation_unref(pa_op);                                  
-                    pa_context_disconnect(pa_ctx);                              
-                    pa_context_unref(pa_ctx);                                   
-                    pa_mainloop_free(pa_ml);                                    
-                    Py_INCREF(Py_True);                                             
-                    return Py_True;                                             
-                }                                                               
-                break;                                                          
-            default:                                                            
-                Py_INCREF(Py_False);                                                
-                return Py_False;                                                
-        }                                                                       
-        pa_mainloop_iterate(pa_ml, 1, NULL);                                    
-    }                                    
-
-    Py_INCREF(Py_False);
-    return Py_False;
+    pa_operation *pa_op = NULL;
+    if (!(pa_op = pa_context_set_sink_mute_by_index(self->pa_ctx,
+                    index, mute == Py_True ? 1 : 0, NULL, NULL))) {
+        printf("pa_context_set_sink_mute_by_index() failed");
+        RETURN_FALSE;
+    }
+    pa_operation_unref(pa_op);
+    RETURN_TRUE;
 }
 
 static PyObject *m_set_input_mute(DeepinPulseAudioObject *self, 
                                   PyObject *args) 
 {
+    if (!self->pa_ctx || pa_context_get_state(self->pa_ctx) != PA_CONTEXT_READY) {
+        RETURN_FALSE;
+    }
+
     int index = 0;
     PyObject *mute = NULL;
-    pa_mainloop *pa_ml = NULL;                                                         
-    pa_mainloop_api *pa_mlapi = NULL;                                                  
-    pa_context *pa_ctx = NULL;                                                         
-    pa_operation *pa_op = NULL;   
-    int state = 0;
-    int pa_ready = 0;
 
     if (!PyArg_ParseTuple(args, "nO", &index, &mute)) {
         ERROR("invalid arguments to set_input_mute");
@@ -1057,101 +648,47 @@ static PyObject *m_set_input_mute(DeepinPulseAudioObject *self,
     }
     
     if (!PyBool_Check(mute)) {                                                 
-        Py_INCREF(Py_False);                                                    
-        return Py_False;                                                        
+        RETURN_FALSE;
+    } 
+                                                                            
+    pa_operation *pa_op = NULL;
+    if (!(pa_op = pa_context_set_source_mute_by_index(self->pa_ctx,
+                    index, mute == Py_True ? 1 : 0, NULL, NULL))) {
+        printf("pa_context_set_source_mute_by_index() failed");
+        RETURN_FALSE;
     }
-
-    pa_ml = pa_mainloop_new();                                                  
-    pa_mlapi = pa_mainloop_get_api(pa_ml);                                      
-    pa_ctx = pa_context_new(pa_mlapi, PACKAGE);                                
-                                                                                
-    pa_context_connect(pa_ctx, NULL, 0, NULL);
-    pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);            
-
-    for (;;) {                                                                  
-        if (pa_ready == 0) {                                                    
-            pa_mainloop_iterate(pa_ml, 1, NULL);                                
-            continue;                                                           
-        }                                                                       
-        if (pa_ready == 2) {                                                    
-            pa_context_disconnect(pa_ctx);                                      
-            pa_context_unref(pa_ctx);                                           
-            pa_mainloop_free(pa_ml);                                            
-            Py_INCREF(Py_False);                                                    
-            return Py_False;                                                    
-        }                                                                       
-        switch (state) {                                                        
-            case 0:
-                pa_op = pa_context_set_source_mute_by_index(pa_ctx, 
-                    index, mute == Py_True ? 1 : 0, NULL, NULL);                                       
-                state++;                                                        
-                break;                                                          
-            case 1:                                                             
-                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {                    
-                    pa_operation_unref(pa_op);                                  
-                    pa_context_disconnect(pa_ctx);                              
-                    pa_context_unref(pa_ctx);                                   
-                    pa_mainloop_free(pa_ml);                                    
-                    Py_INCREF(Py_True);                                             
-                    return Py_True;                                             
-                }                                                               
-                break;                                                          
-            default:                                                            
-                Py_INCREF(Py_False);                                                
-                return Py_False;                                                
-        }                                                                       
-        pa_mainloop_iterate(pa_ml, 1, NULL);                                    
-    }                                    
-
-    Py_INCREF(Py_False);
-    return Py_False;
+    pa_operation_unref(pa_op);
+    RETURN_TRUE;
 }
 
 static PyObject *m_set_output_volume(DeepinPulseAudioObject *self, 
                                      PyObject *args) 
 {
+    if (!self->pa_ctx || pa_context_get_state(self->pa_ctx) != PA_CONTEXT_READY) {
+        RETURN_FALSE;
+    }
+
     int index = -1;
     PyObject *volume = NULL;
-    pa_mainloop *pa_ml = NULL;
-    pa_mainloop_api *pa_mlapi = NULL;
-    pa_context *pa_ctx = NULL;
-    pa_operation *pa_op = NULL;
-    pa_cvolume output_volume;
-    int state = 0;
-    int pa_ready = 0;
     int channel_num = 1, i;
+    pa_cvolume output_volume;
     Py_ssize_t tuple_size = 0;
+    PyObject *tmp_obj = NULL;
 
-    if (!PyArg_ParseTuple(args, "nO", &index, &volume)) {
+    if (!PyArg_ParseTuple(args, "nOn", &index, &volume, &channel_num)) {
         ERROR("invalid arguments to set_output_volume");
         return NULL;
     }
 
     if (PyList_Check(volume)) {
-        volume = PyList_AsTuple(volume);
+        tmp_obj = PyList_AsTuple(volume);
+        Py_XDECREF(volume);
+        volume = tmp_obj;
     }
     if (!PyTuple_Check(volume)){
-        Py_INCREF(Py_False);
-        return Py_False;
+        RETURN_FALSE;
     }
 
-    if (!PyDict_Contains(self->output_devices, INT(index))) {
-        Py_INCREF(Py_False);
-        return Py_False;
-    }
-    if (!PyDict_Contains(self->output_channels, INT(index))) {
-        Py_INCREF(Py_False);
-        return Py_False;
-    }
-    channel_num = PyInt_AsLong(PyDict_GetItemString(PyDict_GetItem(
-                                    self->output_channels, INT(index)), "channels"));
-
-    pa_ml = pa_mainloop_new();
-    pa_mlapi = pa_mainloop_get_api(pa_ml);
-    pa_ctx = pa_context_new(pa_mlapi, PACKAGE);
-
-    pa_context_connect(pa_ctx, NULL, 0, NULL);
-    pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);
     memset(&output_volume, 0, sizeof(pa_cvolume));
     
     tuple_size = PyTuple_Size(volume);
@@ -1163,94 +700,41 @@ static PyObject *m_set_output_volume(DeepinPulseAudioObject *self,
             output_volume.values[i] = PyInt_AsLong(PyTuple_GetItem(volume, i));
     }
 
-    for (;;) {
-        if (pa_ready == 0) {
-            pa_mainloop_iterate(pa_ml, 1, NULL);
-            continue;
-        }
-        if (pa_ready == 2) {
-            pa_context_disconnect(pa_ctx);
-            pa_context_unref(pa_ctx);
-            pa_mainloop_free(pa_ml);
-            Py_INCREF(Py_False);
-            return Py_False;
-        }
-        switch (state) {
-            case 0:
-                pa_op = pa_context_set_sink_volume_by_index(pa_ctx,
-                                                            index,
-                                                            &output_volume,
-                                                            NULL,
-                                                            NULL);
-                state++;
-                break;
-            case 1:
-                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
-                    pa_operation_unref(pa_op);
-                    pa_context_disconnect(pa_ctx);
-                    pa_context_unref(pa_ctx);
-                    pa_mainloop_free(pa_ml);
-                    Py_INCREF(Py_True);
-                    return Py_True;
-                }
-                break;
-            default:
-                Py_INCREF(Py_False);
-                return Py_False;
-        }
-        pa_mainloop_iterate(pa_ml, 1, NULL);
+    pa_operation *pa_op = NULL;
+    if (!(pa_op = pa_context_set_sink_volume_by_index(self->pa_ctx,
+                    index, &output_volume, NULL, NULL))) {
+        printf("pa_context_set_sink_volume_by_index() failed");
+        RETURN_FALSE;
     }
-    
-    Py_INCREF(Py_True);
-    return Py_True;
+    pa_operation_unref(pa_op);
+    RETURN_TRUE;
 }
 
 static PyObject *m_set_output_volume_with_balance(DeepinPulseAudioObject *self,
                                                   PyObject *args)
 {
+    if (!self->pa_ctx || pa_context_get_state(self->pa_ctx) != PA_CONTEXT_READY) {
+        RETURN_FALSE;
+    }
+
     int index = -1;
     long int volume;
     float balance;
-    pa_mainloop *pa_ml = NULL;
-    pa_mainloop_api *pa_mlapi = NULL;
-    pa_context *pa_ctx = NULL;
-    pa_operation *pa_op = NULL;
     pa_cvolume output_volume;
     pa_channel_map output_channel_map;
-    int state = 0;
-    int pa_ready = 0;
     int channel_num = 1, i;
 
     PyObject *channel_map_list = NULL;
 
-    if (!PyArg_ParseTuple(args, "nlf", &index, &volume, &balance)) {
+    if (!PyArg_ParseTuple(args, "nlfnO", &index, &volume, &balance, &channel_num, &channel_map_list)) {
         ERROR("invalid arguments to set_output_volume");
         return NULL;
     }
 
-    if (!PyDict_Contains(self->output_devices, INT(index))) {
-        Py_INCREF(Py_False);
-        return Py_False;
-    }
-    if (!PyDict_Contains(self->output_channels, INT(index))) {
-        Py_INCREF(Py_False);
-        return Py_False;
-    }
-    channel_num = PyInt_AsLong(PyDict_GetItemString(PyDict_GetItem(
-                                    self->output_channels, INT(index)), "channels"));
-    channel_map_list = PyDict_GetItemString(PyDict_GetItem(
-                                    self->output_channels, INT(index)), "map");
-    if (!channel_map_list) {
-        Py_INCREF(Py_False);
-        return Py_False;
+    if (!PyList_Check(channel_map_list)) {
+        RETURN_FALSE;
     }
 
-    pa_ml = pa_mainloop_new();
-    pa_mlapi = pa_mainloop_get_api(pa_ml);
-    pa_ctx = pa_context_new(pa_mlapi, PACKAGE);
-
-    pa_context_connect(pa_ctx, NULL, 0, NULL);
-    pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);
     memset(&output_volume, 0, sizeof(pa_cvolume));
     memset(&output_channel_map, 0, sizeof(pa_channel_map));
 
@@ -1261,193 +745,90 @@ static PyObject *m_set_output_volume_with_balance(DeepinPulseAudioObject *self,
     }
     // set balance
     pa_cvolume_set_balance(&output_volume, &output_channel_map, balance);
-
-    for (;;) {
-        if (pa_ready == 0) {
-            pa_mainloop_iterate(pa_ml, 1, NULL);
-            continue;
-        }
-        if (pa_ready == 2) {
-            pa_context_disconnect(pa_ctx);
-            pa_context_unref(pa_ctx);
-            pa_mainloop_free(pa_ml);
-            Py_INCREF(Py_False);
-            return Py_False;
-        }
-        switch (state) {
-            case 0:
-                pa_op = pa_context_set_sink_volume_by_index(pa_ctx,
-                                                            index,
-                                                            &output_volume,
-                                                            NULL,
-                                                            NULL);
-                state++;
-                break;
-            case 1:
-                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
-                    pa_operation_unref(pa_op);
-                    pa_context_disconnect(pa_ctx);
-                    pa_context_unref(pa_ctx);
-                    pa_mainloop_free(pa_ml);
-                    Py_INCREF(Py_True);
-                    return Py_True;
-                }
-                break;
-            default:
-                Py_INCREF(Py_False);
-                return Py_False;
-        }
-        pa_mainloop_iterate(pa_ml, 1, NULL);
+    pa_operation *pa_op = NULL;
+    if (!(pa_op = pa_context_set_sink_volume_by_index(self->pa_ctx,
+                    index, &output_volume, NULL, NULL))) {
+        printf("pa_context_set_sink_volume_by_index() failed");
+        RETURN_FALSE;
     }
-
-    Py_INCREF(Py_True);
-    return Py_True;
+    pa_operation_unref(pa_op);
+    RETURN_TRUE;
 }
 
 static PyObject *m_set_input_volume(DeepinPulseAudioObject *self, 
                                     PyObject *args) 
 {
+    if (!self->pa_ctx || pa_context_get_state(self->pa_ctx) != PA_CONTEXT_READY) {
+        RETURN_FALSE;
+    }
+
     int index = 0;
     PyObject *volume = NULL;
-    pa_mainloop *pa_ml = NULL;
-    pa_mainloop_api *pa_mlapi = NULL;
-    pa_context *pa_ctx = NULL;
-    pa_operation *pa_op = NULL;
-    pa_cvolume pa_input_volume;
-    int state = 0;
-    int pa_ready = 0;
     int channel_num = 1, i;
+    pa_cvolume input_volume;
     Py_ssize_t tuple_size = 0;
+    PyObject *tmp_obj = NULL;
 
-    if (!PyArg_ParseTuple(args, "nO", &index, &volume)) {
+    if (!PyArg_ParseTuple(args, "nOn", &index, &volume, &channel_num)) {
         ERROR("invalid arguments to set_input_volume");
         return NULL;
     }
 
     if (PyList_Check(volume)) {
-        volume = PyList_AsTuple(volume);
+        tmp_obj = PyList_AsTuple(volume);
+        Py_XDECREF(volume);
+        volume = tmp_obj;
     }
     if (!PyTuple_Check(volume)) {
-        Py_INCREF(Py_False);
-        return Py_False;
+        RETURN_FALSE;
     }
 
-    if (!PyDict_Contains(self->input_devices, INT(index))) {
-        Py_INCREF(Py_False);
-        return Py_False;
-    }
-    if (!PyDict_Contains(self->input_channels, INT(index))) {
-        Py_INCREF(Py_False);
-        return Py_False;
-    }
-    channel_num = PyInt_AsLong(PyDict_GetItemString(PyDict_GetItem(
-                                    self->input_channels, INT(index)), "channels"));
-
-    pa_ml = pa_mainloop_new();
-    pa_mlapi = pa_mainloop_get_api(pa_ml);
-    pa_ctx = pa_context_new(pa_mlapi, PACKAGE);
-
-    pa_context_connect(pa_ctx, NULL, 0, NULL);
-    pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);
-    memset(&pa_input_volume, 0, sizeof(pa_cvolume));
+    memset(&input_volume, 0, sizeof(pa_cvolume));
 
     tuple_size = PyTuple_Size(volume);
-    pa_input_volume.channels = channel_num;
+    input_volume.channels = channel_num;
     if (tuple_size > channel_num) {
         tuple_size = channel_num;
     }
     for (i = 0; i < tuple_size; i++) {
-        pa_input_volume.values[i] = PyInt_AsLong(PyTuple_GetItem(volume, i));
+        input_volume.values[i] = PyInt_AsLong(PyTuple_GetItem(volume, i));
     }
 
-    for (;;) {
-        if (pa_ready == 0) {
-            pa_mainloop_iterate(pa_ml, 1, NULL);
-            continue;
-        }
-        if (pa_ready == 2) {
-            pa_context_disconnect(pa_ctx);
-            pa_context_unref(pa_ctx);
-            pa_mainloop_free(pa_ml);
-            Py_INCREF(Py_False);
-            return Py_False;
-        }
-        switch (state) {
-            case 0:
-                pa_op = pa_context_set_source_volume_by_index(pa_ctx,
-                                                              index,
-                                                              &pa_input_volume,
-                                                              NULL,
-                                                              NULL);
-                state++;
-                break;
-            case 1:
-                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
-                    pa_operation_unref(pa_op);
-                    pa_context_disconnect(pa_ctx);
-                    pa_context_unref(pa_ctx);
-                    pa_mainloop_free(pa_ml);
-                    Py_INCREF(Py_True);
-                    return Py_True;
-                }
-                break;
-            default:
-                Py_INCREF(Py_False);
-                return Py_False;
-        }
-        pa_mainloop_iterate(pa_ml, 1, NULL);
+    pa_operation *pa_op = NULL;
+    if (!(pa_op = pa_context_set_source_volume_by_index(self->pa_ctx,
+                    index, &input_volume, NULL, NULL))) {
+        printf("pa_context_set_source_volume_by_index() failed");
+        RETURN_FALSE;
     }
-                                                                                
-    Py_INCREF(Py_True);
-    return Py_True;
+    pa_operation_unref(pa_op);
+    RETURN_TRUE;
 }
 
 static PyObject *m_set_input_volume_with_balance(DeepinPulseAudioObject *self,
                                                  PyObject *args)
 {
+    if (!self->pa_ctx || pa_context_get_state(self->pa_ctx) != PA_CONTEXT_READY) {
+        RETURN_FALSE;
+    }
+
     int index = -1;
     long int volume;
     float balance;
-    pa_mainloop *pa_ml = NULL;
-    pa_mainloop_api *pa_mlapi = NULL;
-    pa_context *pa_ctx = NULL;
-    pa_operation *pa_op = NULL;
     pa_cvolume input_volume;
     pa_channel_map input_channel_map;
-    int state = 0;
-    int pa_ready = 0;
     int channel_num = 1, i;
 
     PyObject *channel_map_list = NULL;
 
-    if (!PyArg_ParseTuple(args, "nlf", &index, &volume, &balance)) {
+    if (!PyArg_ParseTuple(args, "nlfnO", &index, &volume, &balance, &channel_num, &channel_map_list)) {
         ERROR("invalid arguments to set_output_volume");
         return NULL;
     }
 
-    if (!PyDict_Contains(self->input_devices, INT(index))) {
-        Py_INCREF(Py_False);
-        return Py_False;
-    }
-    if (!PyDict_Contains(self->input_channels, INT(index))) {
-        Py_INCREF(Py_False);
-        return Py_False;
-    }
-    channel_num = PyInt_AsLong(PyDict_GetItemString(PyDict_GetItem(
-                                    self->input_channels, INT(index)), "channels"));
-    channel_map_list = PyDict_GetItemString(PyDict_GetItem(
-                                    self->input_channels, INT(index)), "map");
-    if (!channel_map_list) {
-        Py_INCREF(Py_False);
-        return Py_False;
+    if (!PyList_Check(channel_map_list)) {
+        RETURN_FALSE;
     }
 
-    pa_ml = pa_mainloop_new();
-    pa_mlapi = pa_mainloop_get_api(pa_ml);
-    pa_ctx = pa_context_new(pa_mlapi, PACKAGE);
-
-    pa_context_connect(pa_ctx, NULL, 0, NULL);
-    pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);
     memset(&input_volume, 0, sizeof(pa_cvolume));
     memset(&input_channel_map, 0, sizeof(pa_channel_map));
 
@@ -1458,60 +839,25 @@ static PyObject *m_set_input_volume_with_balance(DeepinPulseAudioObject *self,
     }
     // set balance
     pa_cvolume_set_balance(&input_volume, &input_channel_map, balance);
-
-    for (;;) {
-        if (pa_ready == 0) {
-            pa_mainloop_iterate(pa_ml, 1, NULL);
-            continue;
-        }
-        if (pa_ready == 2) {
-            pa_context_disconnect(pa_ctx);
-            pa_context_unref(pa_ctx);
-            pa_mainloop_free(pa_ml);
-            Py_INCREF(Py_False);
-            return Py_False;
-        }
-        switch (state) {
-            case 0:
-                pa_op = pa_context_set_source_volume_by_index(pa_ctx,
-                                                              index,
-                                                              &input_volume,
-                                                              NULL,
-                                                              NULL);
-                state++;
-                break;
-            case 1:
-                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
-                    pa_operation_unref(pa_op);
-                    pa_context_disconnect(pa_ctx);
-                    pa_context_unref(pa_ctx);
-                    pa_mainloop_free(pa_ml);
-                    Py_INCREF(Py_True);
-                    return Py_True;
-                }
-                break;
-            default:
-                Py_INCREF(Py_False);
-                return Py_False;
-        }
-        pa_mainloop_iterate(pa_ml, 1, NULL);
+    pa_operation *pa_op = NULL;
+    if (!(pa_op = pa_context_set_source_volume_by_index(self->pa_ctx,
+                    index, &input_volume, NULL, NULL))) {
+        printf("pa_context_set_source_volume_by_index() failed");
+        RETURN_FALSE;
     }
-
-    Py_INCREF(Py_True);
-    return Py_True;
+    pa_operation_unref(pa_op);
+    RETURN_TRUE;
 }
 
 static PyObject *m_set_sink_input_mute(DeepinPulseAudioObject *self,
                                        PyObject *args)
 {
-    pa_mainloop *pa_ml = NULL;
-    pa_mainloop_api *pa_mlapi = NULL;
-    pa_context *pa_ctx = NULL;
-    pa_operation *pa_op = NULL;
+    if (!self->pa_ctx || pa_context_get_state(self->pa_ctx) != PA_CONTEXT_READY) {
+        RETURN_FALSE;
+    }
+
     int index = 0;
     PyObject *mute = NULL;
-    int pa_ready = 0;
-    int state = 0;
 
     if (!PyArg_ParseTuple(args, "nO", &index, &mute)) {
         ERROR("invalid arguments to set_sink_input_mute");
@@ -1519,96 +865,47 @@ static PyObject *m_set_sink_input_mute(DeepinPulseAudioObject *self,
     }
 
     if (!PyBool_Check(mute)) {                                                 
-        Py_INCREF(Py_False);                                                    
-        return Py_False;                                                        
+        RETURN_FALSE;
     }
 
-    pa_ml = pa_mainloop_new();
-    pa_mlapi = pa_mainloop_get_api(pa_ml);
-    pa_ctx = pa_context_new(pa_mlapi, PACKAGE);
-
-    pa_context_connect(pa_ctx, NULL, 0, NULL);
-    pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);
-
-    for (;;) {
-        if (pa_ready == 0) {
-            pa_mainloop_iterate(pa_ml, 1, NULL);
-            continue;
-        }
-        if (pa_ready == 2) {
-            pa_context_disconnect(pa_ctx);
-            pa_context_unref(pa_ctx);
-            pa_mainloop_free(pa_ml);
-            Py_INCREF(Py_False);
-            return Py_False;
-        }
-        switch (state) {
-            case 0:
-                pa_op = pa_context_set_sink_input_mute(pa_ctx, 
-                    index, mute == Py_True ? 1 : 0, NULL, NULL);                                       
-                state++;
-                break;
-            case 1:
-                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
-                    pa_operation_unref(pa_op);
-                    pa_context_disconnect(pa_ctx);
-                    pa_context_unref(pa_ctx);
-                    pa_mainloop_free(pa_ml);
-                    Py_INCREF(Py_True);
-                    return Py_True;
-                }
-                break;
-            default:
-                Py_INCREF(Py_False);
-                return Py_False;
-        }
-        pa_mainloop_iterate(pa_ml, 1, NULL);
+    pa_operation *pa_op = NULL;
+    if (!(pa_op = pa_context_set_sink_input_mute(self->pa_ctx,
+                    index, mute == Py_True ? 1 : 0, NULL, NULL))) {
+        printf("pa_context_set_sink_input_mute() failed");
+        RETURN_FALSE;
     }
-    Py_INCREF(Py_True);
-    return Py_True;
+    pa_operation_unref(pa_op);
+    RETURN_TRUE;
 }
 
 static PyObject *m_set_sink_input_volume(DeepinPulseAudioObject *self,
                                          PyObject *args)
 {
+    if (!self->pa_ctx || pa_context_get_state(self->pa_ctx) != PA_CONTEXT_READY) {
+        RETURN_FALSE;
+    }
+
     int index = 0;
     PyObject *volume = NULL;
-    pa_mainloop *pa_ml = NULL;
-    pa_mainloop_api *pa_mlapi = NULL;
-    pa_context *pa_ctx = NULL;
-    pa_operation *pa_op = NULL;
-    pa_cvolume pa_sink_input_volume;
-    int state = 0;
-    int pa_ready = 0;
     int channel_num = 1, i;
+    pa_cvolume pa_sink_input_volume;
     Py_ssize_t tuple_size = 0;
+    PyObject *tmp_obj = NULL;
 
-    if (!PyArg_ParseTuple(args, "nO", &index, &volume)) {
+    if (!PyArg_ParseTuple(args, "nOn", &index, &volume, &channel_num)) {
         ERROR("invalid arguments to set_input_volume");
         return NULL;
     }
 
     if (PyList_Check(volume)) {
-        volume = PyList_AsTuple(volume);
+        tmp_obj = PyList_AsTuple(volume);
+        Py_XDECREF(volume);
+        volume = tmp_obj;
     }
     if (!PyTuple_Check(volume)) {
-        Py_INCREF(Py_False);
-        return Py_False;
+        RETURN_FALSE;
     }
 
-    if (!PyDict_Contains(self->playback_streams, INT(index))) {
-        Py_INCREF(Py_False);
-        return Py_False;
-    }
-    channel_num = PyList_Size(PyDict_GetItemString(PyDict_GetItem(
-                                self->playback_streams, INT(index)), "channel"));
-
-    pa_ml = pa_mainloop_new();
-    pa_mlapi = pa_mainloop_get_api(pa_ml);
-    pa_ctx = pa_context_new(pa_mlapi, PACKAGE);
-
-    pa_context_connect(pa_ctx, NULL, 0, NULL);
-    pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);
     memset(&pa_sink_input_volume, 0, sizeof(pa_cvolume));
 
     tuple_size = PyTuple_Size(volume);
@@ -1620,166 +917,60 @@ static PyObject *m_set_sink_input_volume(DeepinPulseAudioObject *self,
         pa_sink_input_volume.values[i] = PyInt_AsLong(PyTuple_GetItem(volume, i));
     }
 
-    for (;;) {
-        if (pa_ready == 0) {
-            pa_mainloop_iterate(pa_ml, 1, NULL);
-            continue;
-        }
-        if (pa_ready == 2) {
-            pa_context_disconnect(pa_ctx);
-            pa_context_unref(pa_ctx);
-            pa_mainloop_free(pa_ml);
-            Py_INCREF(Py_False);
-            return Py_False;
-        }
-        switch (state) {
-            case 0:
-                pa_op = pa_context_set_sink_input_volume(pa_ctx,
-                                                         index,
-                                                         &pa_sink_input_volume,
-                                                         NULL,
-                                                         NULL);
-                state++;
-                break;
-            case 1:
-                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
-                    pa_operation_unref(pa_op);
-                    pa_context_disconnect(pa_ctx);
-                    pa_context_unref(pa_ctx);
-                    pa_mainloop_free(pa_ml);
-                    Py_INCREF(Py_True);
-                    return Py_True;
-                }
-                break;
-            default:
-                Py_INCREF(Py_False);
-                return Py_False;
-        }
-        pa_mainloop_iterate(pa_ml, 1, NULL);
+    pa_operation *pa_op = NULL;
+    if (!(pa_op = pa_context_set_sink_input_volume(self->pa_ctx,
+                    index, &pa_sink_input_volume, NULL, NULL))) {
+        printf("pa_context_set_sink_input_volume() failed");
+        RETURN_FALSE;
     }
-                                                                                
-    Py_INCREF(Py_True);
-    return Py_True;
+    pa_operation_unref(pa_op);
+    RETURN_TRUE;
 }
 
 static PyObject *m_set_fallback_sink(DeepinPulseAudioObject *self,
                                      PyObject *args)
 {
-    pa_mainloop *pa_ml = NULL;
-    pa_mainloop_api *pa_mlapi = NULL;
-    pa_context *pa_ctx = NULL;
-    pa_operation *pa_op = NULL;
+    if (!self->pa_ctx || pa_context_get_state(self->pa_ctx) != PA_CONTEXT_READY) {
+        RETURN_FALSE;
+    }
+
     char *name = NULL;
-    int pa_ready = 0;
-    int state = 0;
 
     if (!PyArg_ParseTuple(args, "s", &name)) {
         ERROR("invalid arguments to set_fallback_sink");
         return NULL;
     }
 
-    pa_ml = pa_mainloop_new();
-    pa_mlapi = pa_mainloop_get_api(pa_ml);
-    pa_ctx = pa_context_new(pa_mlapi, PACKAGE);
-
-    pa_context_connect(pa_ctx, NULL, 0, NULL);
-    pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);
-
-    for (;;) {
-        if (pa_ready == 0) {
-            pa_mainloop_iterate(pa_ml, 1, NULL);
-            continue;
-        }
-        if (pa_ready == 2) {
-            pa_context_disconnect(pa_ctx);
-            pa_context_unref(pa_ctx);
-            pa_mainloop_free(pa_ml);
-            Py_INCREF(Py_False);
-            return Py_False;
-        }
-        switch (state) {
-            case 0:
-                pa_op = pa_context_set_default_sink(pa_ctx, name, NULL, NULL);
-                state++;
-                break;
-            case 1:
-                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
-                    pa_operation_unref(pa_op);
-                    pa_context_disconnect(pa_ctx);
-                    pa_context_unref(pa_ctx);
-                    pa_mainloop_free(pa_ml);
-                    Py_INCREF(Py_True);
-                    return Py_True;
-                }
-                break;
-            default:
-                Py_INCREF(Py_False);
-                return Py_False;
-        }
-        pa_mainloop_iterate(pa_ml, 1, NULL);
+    pa_operation *pa_op = NULL;
+    if (!(pa_op = pa_context_set_default_sink(self->pa_ctx, name, NULL, NULL))) {
+        printf("pa_context_set_default_sink() failed");
+        RETURN_FALSE;
     }
-    Py_INCREF(Py_True);
-    return Py_True;
+    pa_operation_unref(pa_op);
+    RETURN_TRUE;
 }
 
 static PyObject *m_set_fallback_source(DeepinPulseAudioObject *self,
                                        PyObject *args)
 {
-    pa_mainloop *pa_ml = NULL;
-    pa_mainloop_api *pa_mlapi = NULL;
-    pa_context *pa_ctx = NULL;
-    pa_operation *pa_op = NULL;
+    if (!self->pa_ctx || pa_context_get_state(self->pa_ctx) != PA_CONTEXT_READY) {
+        RETURN_FALSE;
+    }
+
     char *name = NULL;
-    int pa_ready = 0;
-    int state = 0;
 
     if (!PyArg_ParseTuple(args, "s", &name)) {
         ERROR("invalid arguments to set_fallback_source");
         return NULL;
     }
 
-    pa_ml = pa_mainloop_new();
-    pa_mlapi = pa_mainloop_get_api(pa_ml);
-    pa_ctx = pa_context_new(pa_mlapi, PACKAGE);
-
-    pa_context_connect(pa_ctx, NULL, 0, NULL);
-    pa_context_set_state_callback(pa_ctx, m_pa_state_cb, &pa_ready);
-
-    for (;;) {
-        if (pa_ready == 0) {
-            pa_mainloop_iterate(pa_ml, 1, NULL);
-            continue;
-        }
-        if (pa_ready == 2) {
-            pa_context_disconnect(pa_ctx);
-            pa_context_unref(pa_ctx);
-            pa_mainloop_free(pa_ml);
-            Py_INCREF(Py_False);
-            return Py_False;
-        }
-        switch (state) {
-            case 0:
-                pa_op = pa_context_set_default_source(pa_ctx, name, NULL, NULL);
-                state++;
-                break;
-            case 1:
-                if (pa_operation_get_state(pa_op) == PA_OPERATION_DONE) {
-                    pa_operation_unref(pa_op);
-                    pa_context_disconnect(pa_ctx);
-                    pa_context_unref(pa_ctx);
-                    pa_mainloop_free(pa_ml);
-                    Py_INCREF(Py_True);
-                    return Py_True;
-                }
-                break;
-            default:
-                Py_INCREF(Py_False);
-                return Py_False;
-        }
-        pa_mainloop_iterate(pa_ml, 1, NULL);
+    pa_operation *pa_op = NULL;
+    if (!(pa_op = pa_context_set_default_source(self->pa_ctx, name, NULL, NULL))) {
+        printf("pa_context_set_default_source() failed");
+        RETURN_FALSE;
     }
-    Py_INCREF(Py_True);
-    return Py_True;
+    pa_operation_unref(pa_op);
+    RETURN_TRUE;
 }
 
 //*****************************************
@@ -2558,15 +1749,6 @@ static void m_context_state_cb(pa_context *c, void *userdata)
     DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;                         
     pa_operation *pa_op = NULL;
 
-    /*printf("context_state:%d\n", pa_context_get_state(c));*/
-    /*printf("PA_CONTEXT_UNCONNECTED: %d\n", PA_CONTEXT_UNCONNECTED);*/
-    /*printf("PA_CONTEXT_CONNECTING: %d\n", PA_CONTEXT_CONNECTING);*/
-    /*printf("PA_CONTEXT_AUTHORIZING: %d\n", PA_CONTEXT_AUTHORIZING);*/
-    /*printf("PA_CONTEXT_SETTING_NAME: %d\n", PA_CONTEXT_SETTING_NAME);*/
-    /*printf("PA_CONTEXT_READY: %d\n", PA_CONTEXT_READY);*/
-    /*printf("PA_CONTEXT_FAILED: %d\n", PA_CONTEXT_FAILED);*/
-    /*printf("PA_CONTEXT_TERMINATED: %d\n", PA_CONTEXT_TERMINATED);*/
-
     switch (pa_context_get_state(c)) {                                          
         case PA_CONTEXT_UNCONNECTED:
         case PA_CONTEXT_CONNECTING:
@@ -2641,11 +1823,6 @@ static void m_context_state_cb(pa_context *c, void *userdata)
         case PA_CONTEXT_TERMINATED:                                             
         default:        
             {
-                PyObject *key, *value;
-                Py_ssize_t pos = 0;
-                while (PyDict_Next(self->event_cb, &pos, &key, &value)) {
-                    printf("event_cb: %d %s\n", pos, PyString_AsString(key));
-                }
                 printf("pa_context terminated\n");            
                 return;                                                             
             }
