@@ -213,6 +213,7 @@ static int m_pa_stream_connect(pa_context *pa_ctx)
     }
     printf("server version: %d\n", pa_context_get_server_protocol_version(pa_ctx));
     if (s) {
+        pa_stream_disconnect(s);
         pa_stream_unref(s);
     }
 

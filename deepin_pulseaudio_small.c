@@ -1638,7 +1638,7 @@ static void m_pa_event_removed_cb(DeepinPulseAudioObject *self,
 {
     if (!self || !key) 
         return;
-    printf("removed: %s\n", key);
+    /*printf("removed: %s\n", key);*/
     PyObject *callback = PyDict_GetItemString(self->event_cb, key);
     if (!callback || !PyCallable_Check(callback)) {
         return;
