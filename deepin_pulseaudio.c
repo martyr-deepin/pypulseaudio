@@ -45,6 +45,7 @@ typedef struct {
     pa_glib_mainloop *pa_ml;
     pa_context *pa_ctx;
     pa_mainloop_api *pa_mlapi;
+    pa_stream *stream_conn_record;
     PyObject *sink_new_cb; /* callback */                                       
     PyObject *sink_changed_cb;                                                  
     PyObject *sink_removed_cb;                                                  
@@ -63,6 +64,8 @@ typedef struct {
     PyObject *source_output_new_cb;                                             
     PyObject *source_output_changed_cb;                                         
     PyObject *source_output_removed_cb;
+    PyObject *stream_conn_record_read_cb;
+    PyObject *stream_conn_record_suspended_cb;
     PyObject *server_info;  /* data */
     PyObject *card_devices;
     PyObject *input_devices;
@@ -180,65 +183,67 @@ static PyObject *m_set_fallback_source(DeepinPulseAudioObject *self, PyObject *a
 
 static PyObject *m_connect_to_pulse(DeepinPulseAudioObject *self);        
 static PyObject *m_connect(DeepinPulseAudioObject *self, PyObject *args);
+static PyObject *m_connect_record(DeepinPulseAudioObject *self, PyObject *args);
 
 static PyMethodDef deepin_pulseaudio_object_methods[] = 
 {
-    {"delete", m_delete, METH_NOARGS, "Deepin PulseAudio destruction"}, 
-    {"connect_to_pulse", m_connect_to_pulse, METH_NOARGS, "Connect to PulseAudio"},
-    {"connect", m_connect, METH_VARARGS, "Connect signal callback"},
-    {"get_server_info", m_get_server_info, METH_NOARGS, "Get server info"},
-    {"get_cards", m_get_cards, METH_NOARGS, "Get card list"}, 
-    {"get_devices", m_get_devices, METH_NOARGS, "Get device list"}, 
+    {"delete", (PyCFunction)m_delete, METH_NOARGS, "Deepin PulseAudio destruction"}, 
+    {"connect_to_pulse", (PyCFunction)m_connect_to_pulse, METH_NOARGS, "Connect to PulseAudio"},
+    {"connect", (PyCFunction)m_connect, METH_VARARGS, "Connect signal callback"},
+    {"connect_record", (PyCFunction)m_connect_record, METH_VARARGS, "Connect stream to a source"},
+    {"get_server_info", (PyCFunction)m_get_server_info, METH_NOARGS, "Get server info"},
+    {"get_cards", (PyCFunction)m_get_cards, METH_NOARGS, "Get card list"}, 
+    {"get_devices", (PyCFunction)m_get_devices, METH_NOARGS, "Get device list"}, 
 
-    {"get_output_devices", m_get_output_devices, METH_NOARGS, "Get output device list"},  
-    {"get_input_devices", m_get_input_devices, METH_NOARGS, "Get input device list"},      
-    {"get_playback_streams", m_get_playback_streams, METH_NOARGS, "Get playback stream list"},
-    {"get_record_streams", m_get_record_streams, METH_NOARGS, "Get record stream list"},
+    {"get_output_devices", (PyCFunction)m_get_output_devices, METH_NOARGS, "Get output device list"},  
+    {"get_input_devices", (PyCFunction)m_get_input_devices, METH_NOARGS, "Get input device list"},      
+    {"get_playback_streams", (PyCFunction)m_get_playback_streams, METH_NOARGS, "Get playback stream list"},
+    {"get_record_streams", (PyCFunction)m_get_record_streams, METH_NOARGS, "Get record stream list"},
 
-    {"get_output_ports", m_get_output_ports, METH_NOARGS, "Get output port list"}, 
-    {"get_output_ports_by_index", m_get_output_ports_by_index, METH_VARARGS, "Get output port list"}, 
-    {"get_input_ports", m_get_input_ports, METH_NOARGS, "Get input port list"},    
-    {"get_input_ports_by_index", m_get_input_ports_by_index, METH_VARARGS, "Get input port list"},    
+    {"get_output_ports", (PyCFunction)m_get_output_ports, METH_NOARGS, "Get output port list"}, 
+    {"get_output_ports_by_index", (PyCFunction)m_get_output_ports_by_index, METH_VARARGS, "Get output port list"}, 
+    {"get_input_ports", (PyCFunction)m_get_input_ports, METH_NOARGS, "Get input port list"},    
+    {"get_input_ports_by_index", (PyCFunction)m_get_input_ports_by_index, METH_VARARGS, "Get input port list"},    
 
-    {"get_output_channels", m_get_output_channels, METH_VARARGS, "Get output channels"}, 
-    {"get_output_channels_by_index", m_get_output_channels_by_index, METH_VARARGS, "Get output channels"}, 
-    {"get_input_channels", m_get_input_channels, METH_VARARGS, "Get input channels"},   
-    {"get_input_channels_by_index", m_get_input_channels_by_index, METH_VARARGS, "Get input channels"},   
+    {"get_output_channels", (PyCFunction)m_get_output_channels, METH_VARARGS, "Get output channels"}, 
+    {"get_output_channels_by_index", (PyCFunction)m_get_output_channels_by_index, METH_VARARGS, "Get output channels"}, 
+    {"get_input_channels", (PyCFunction)m_get_input_channels, METH_VARARGS, "Get input channels"},   
+    {"get_input_channels_by_index", (PyCFunction)m_get_input_channels_by_index, METH_VARARGS, "Get input channels"},   
 
-    {"get_output_active_ports", m_get_output_active_ports, METH_VARARGS, "Get output active ports"},
-    {"get_output_active_ports_by_index", m_get_output_active_ports_by_index, METH_VARARGS, "Get output active ports"},
-    {"get_input_active_ports", m_get_input_active_ports, METH_VARARGS, "Get input active ports"},    
-    {"get_input_active_ports_by_index", m_get_input_active_ports_by_index, METH_VARARGS, "Get input active ports"},    
+    {"get_output_active_ports", (PyCFunction)m_get_output_active_ports, METH_VARARGS, "Get output active ports"},
+    {"get_output_active_ports_by_index", (PyCFunction)m_get_output_active_ports_by_index, METH_VARARGS, "Get output active ports"},
+    {"get_input_active_ports", (PyCFunction)m_get_input_active_ports, METH_VARARGS, "Get input active ports"},    
+    {"get_input_active_ports_by_index", (PyCFunction)m_get_input_active_ports_by_index, METH_VARARGS, "Get input active ports"},    
 
-    {"get_output_mute", m_get_output_mute, METH_VARARGS, "Get output mute"}, 
-    {"get_output_mute_by_index", m_get_output_mute_by_index, METH_VARARGS, "Get output mute"}, 
-    {"get_input_mute", m_get_input_mute, METH_VARARGS, "Get input mute"},
-    {"get_input_mute_by_index", m_get_input_mute_by_index, METH_VARARGS, "Get input mute"},
+    {"get_output_mute", (PyCFunction)m_get_output_mute, METH_VARARGS, "Get output mute"}, 
+    {"get_output_mute_by_index", (PyCFunction)m_get_output_mute_by_index, METH_VARARGS, "Get output mute"}, 
+    {"get_input_mute", (PyCFunction)m_get_input_mute, METH_VARARGS, "Get input mute"},
+    {"get_input_mute_by_index", (PyCFunction)m_get_input_mute_by_index, METH_VARARGS, "Get input mute"},
 
-    {"get_output_volume", m_get_output_volume, METH_VARARGS, "Get output volume"}, 
-    {"get_output_volume_by_index", m_get_output_volume_by_index, METH_VARARGS, "Get output volume"}, 
-    {"get_input_volume", m_get_input_volume, METH_VARARGS, "Get input volume"},  
-    {"get_input_volume_by_index", m_get_input_volume_by_index, METH_VARARGS, "Get input volume"},  
+    {"get_output_volume", (PyCFunction)m_get_output_volume, METH_VARARGS, "Get output volume"}, 
+    {"get_output_volume_by_index", (PyCFunction)m_get_output_volume_by_index, METH_VARARGS, "Get output volume"}, 
+    {"get_input_volume", (PyCFunction)m_get_input_volume, METH_VARARGS, "Get input volume"},  
+    {"get_input_volume_by_index", (PyCFunction)m_get_input_volume_by_index, METH_VARARGS, "Get input volume"},  
     
-    {"get_fallback_sink", m_get_fallback_sink, METH_NOARGS, "Get fallback sink"},
-    {"get_fallback_source", m_get_fallback_source, METH_NOARGS, "Get fallback source"},
+    {"get_fallback_sink", (PyCFunction)m_get_fallback_sink, METH_NOARGS, "Get fallback sink"},
+    {"get_fallback_source", (PyCFunction)m_get_fallback_source, METH_NOARGS, "Get fallback source"},
 
-    {"set_output_active_port", m_set_output_active_port, METH_VARARGS, "Set output active port"}, 
-    {"set_input_active_port", m_set_input_active_port, METH_VARARGS, "Set input active port"}, 
+    {"set_output_active_port", (PyCFunction)m_set_output_active_port, METH_VARARGS, "Set output active port"}, 
+    {"set_input_active_port", (PyCFunction)m_set_input_active_port, METH_VARARGS, "Set input active port"}, 
 
-    {"set_output_mute", m_set_output_mute, METH_VARARGS, "Set output mute"}, 
-    {"set_input_mute", m_set_input_mute, METH_VARARGS, "Set input mute"}, 
+    {"set_output_mute", (PyCFunction)m_set_output_mute, METH_VARARGS, "Set output mute"}, 
+    {"set_input_mute", (PyCFunction)m_set_input_mute, METH_VARARGS, "Set input mute"}, 
 
-    {"set_output_volume", m_set_output_volume, METH_VARARGS, "Set output volume"}, 
-    {"set_output_volume_with_balance", m_set_output_volume_with_balance, METH_VARARGS, "Set output volume"}, 
-    {"set_input_volume", m_set_input_volume, METH_VARARGS, "Set input volume"}, 
-    {"set_input_volume_with_balance", m_set_input_volume_with_balance, METH_VARARGS, "Set input volume"}, 
+    {"set_output_volume", (PyCFunction)m_set_output_volume, METH_VARARGS, "Set output volume"}, 
+    {"set_output_volume_with_balance", (PyCFunction)m_set_output_volume_with_balance, METH_VARARGS, "Set output volume"}, 
+    {"set_input_volume", (PyCFunction)m_set_input_volume, METH_VARARGS, "Set input volume"}, 
+    {"set_input_volume_with_balance", (PyCFunction)m_set_input_volume_with_balance, METH_VARARGS, "Set input volume"}, 
 
-    {"set_sink_input_mute", m_set_sink_input_mute, METH_VARARGS, "Set sink_input mute"},
-    {"set_sink_input_volume", m_set_sink_input_volume, METH_VARARGS, "Set sink_input volume"},
+    {"set_sink_input_mute", (PyCFunction)m_set_sink_input_mute, METH_VARARGS, "Set sink_input mute"},
+    {"set_sink_input_volume", (PyCFunction)m_set_sink_input_volume, METH_VARARGS, "Set sink_input volume"},
     
-    {"set_fallback_sink", m_set_fallback_sink, METH_VARARGS, "Set fallback sink"},
-    {"set_fallback_source", m_set_fallback_source, METH_VARARGS, "Set fallback source"},
+    {"set_fallback_sink", (PyCFunction)m_set_fallback_sink, METH_VARARGS, "Set fallback sink"},
+    {"set_fallback_source", (PyCFunction)m_set_fallback_source, METH_VARARGS, "Set fallback source"},
     {NULL, NULL, 0, NULL}
 };
 
@@ -464,6 +469,7 @@ static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object()
     self->pa_ml = NULL;                                                         
     self->pa_ctx = NULL;                                                        
     self->pa_mlapi = NULL;                                                      
+    self->stream_conn_record = NULL;
                                                                                 
     self->sink_new_cb = NULL;                                                   
     self->sink_changed_cb = NULL;                                               
@@ -483,6 +489,8 @@ static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object()
     self->source_output_new_cb = NULL;                                          
     self->source_output_changed_cb = NULL;                                      
     self->source_output_removed_cb = NULL;
+    self->stream_conn_record_read_cb = NULL;
+    self->stream_conn_record_suspended_cb = NULL;
 
     return self;
 }
@@ -777,6 +785,12 @@ static PyObject *m_delete(DeepinPulseAudioObject *self)
     if (self->record_stream) {
         Py_XDECREF(self->record_stream);
         self->record_stream = NULL;
+    }
+    
+    if (self->stream_conn_record) {
+        pa_stream_disconnect(self->stream_conn_record);
+        pa_stream_unref(self->stream_conn_record);
+        self->stream_conn_record = NULL;
     }
 
     if (self->pa_ctx) {                                                         
@@ -3337,8 +3351,53 @@ static PyObject *m_connect_to_pulse(DeepinPulseAudioObject *self)
     RETURN_TRUE;
 }
 
+static void on_monitor_read_callback(pa_stream *p, size_t length, void *userdata)
+{
+    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
+    const void *data;
+    double v;
+
+    /*printf("read callback length: %d\n", length);*/
+    /*printf("\tget_device_index: %d\n", pa_stream_get_device_index(p));*/
+    /*printf("\tget_device_name: %s\n", pa_stream_get_device_name(p));*/
+    /*printf("\tget_monitor_stream: %d\n", pa_stream_get_monitor_stream(p));*/
+
+    if (pa_stream_peek(p, &data, &length) < 0) {
+        printf("Failed to read data from stream\n");
+        return;
+    }
+    
+    assert(length > 0);
+    assert(length % sizeof(float) == 0);
+    v = ((const float*) data)[length / sizeof(float) -1];
+    pa_stream_drop(p);
+
+    if (v < 0) v = 0;
+    if (v > 1) v = 1;
+    /*printf("\tread callback peek: %f\n", v);*/
+    if (self->stream_conn_record_read_cb && PyCallable_Check(self->stream_conn_record_read_cb)) {
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
+        PyEval_CallFunction(self->stream_conn_record_read_cb, "(Od)", self, v);
+        PyGILState_Release(gstate);
+    }
+}
+
+static void on_monitor_suspended_callback(pa_stream *p, void *userdata)
+{
+    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
+    if (pa_stream_is_suspended(p)) {
+        if (self->stream_conn_record_suspended_cb && PyCallable_Check(self->stream_conn_record_suspended_cb)) {
+            PyGILState_STATE gstate;
+            gstate = PyGILState_Ensure();
+            PyEval_CallFunction(self->stream_conn_record_suspended_cb, "(O)", self);
+            PyGILState_Release(gstate);
+        }
+    }
+}
+
 static PyObject *m_connect(DeepinPulseAudioObject *self, PyObject *args)         
-{                                                                               
+{
     char *signal = NULL;                                                         
     PyObject *callback = NULL;                                                      
                                                                                 
@@ -3463,4 +3522,77 @@ static PyObject *m_connect(DeepinPulseAudioObject *self, PyObject *args)
 
     Py_INCREF(Py_True);                                                         
     return Py_True;                                                             
+}
+
+static PyObject *m_connect_record(DeepinPulseAudioObject *self, PyObject *args)
+{
+    if (!self->pa_ctx) {
+        printf("pa_context_new() failed\n");
+        RETURN_FALSE;
+    }
+    if (pa_context_get_server_protocol_version (self->pa_ctx) < 13) {
+        RETURN_FALSE;
+    }
+    PyObject *read_callback = NULL;
+    PyObject *suspended_callback = NULL;
+    if (!PyArg_ParseTuple(args, "OO:set_callback", &read_callback, &suspended_callback)) {             
+        ERROR("invalid arguments to connect_record");
+        RETURN_FALSE;
+    }
+
+    Py_XINCREF(read_callback);
+    Py_XDECREF(self->stream_conn_record_read_cb);
+    self->stream_conn_record_read_cb = read_callback;
+
+    Py_XINCREF(suspended_callback);
+    Py_XDECREF(self->stream_conn_record_suspended_cb);
+    self->stream_conn_record_suspended_cb = suspended_callback;
+
+    if (self->stream_conn_record) {
+        pa_stream_disconnect(self->stream_conn_record);
+        pa_stream_unref(self->stream_conn_record);
+    }
+
+    pa_proplist  *proplist;
+
+    pa_buffer_attr attr;
+    pa_sample_spec ss;
+
+    int res;
+
+    // pa_sample_spec
+    ss.channels = 1;
+    ss.format = PA_SAMPLE_FLOAT32;
+    ss.rate = 25;
+
+    // pa_buffer_attr
+    memset(&attr, 0, sizeof(attr));
+    attr.fragsize = sizeof(float);
+    attr.maxlength = (uint32_t) -1;
+
+    // pa_proplist
+    proplist = pa_proplist_new ();
+    pa_proplist_sets (proplist, PA_PROP_APPLICATION_ID, "Deepin Sound Settings");
+
+    // create new stream
+    if (!(self->stream_conn_record = pa_stream_new_with_proplist(self->pa_ctx, "Deepin Sound Settings", &ss, NULL, proplist))) {
+        fprintf(stderr, "pa_stream_new error\n");
+        RETURN_FALSE;
+    }
+    pa_proplist_free(proplist);
+
+    pa_stream_set_read_callback(self->stream_conn_record, on_monitor_read_callback, self);
+    pa_stream_set_suspended_callback(self->stream_conn_record, on_monitor_suspended_callback, self);
+
+    res = pa_stream_connect_record(self->stream_conn_record, NULL, &attr, 
+                                   (pa_stream_flags_t) (PA_STREAM_DONT_MOVE
+                                                        |PA_STREAM_PEAK_DETECT
+                                                        |PA_STREAM_ADJUST_LATENCY));
+    
+    if (res < 0) {
+        fprintf(stderr, "Failed to connect monitoring stream\n");
+        RETURN_FALSE;
+    }
+
+    RETURN_TRUE;
 }

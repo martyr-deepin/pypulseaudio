@@ -45,8 +45,10 @@ typedef struct {
     pa_glib_mainloop *pa_ml;
     pa_context *pa_ctx;
     pa_mainloop_api *pa_mlapi;
-    PyObject *state_cb; /* callback */                                       
+    pa_stream *stream_conn_record;
     PyObject *event_cb; /* event callback */
+    PyObject *state_cb; /* callback */                                       
+    PyObject *record_stream_cb; /* record stream callback */
 } DeepinPulseAudioObject;
 
 static PyObject *m_deepin_pulseaudio_object_constants = NULL;
@@ -119,12 +121,14 @@ static PyObject *m_set_fallback_source(DeepinPulseAudioObject *self, PyObject *a
 
 static PyObject *m_connect_to_pulse(DeepinPulseAudioObject *self, PyObject *args);
 static PyObject *m_connect(DeepinPulseAudioObject *self, PyObject *args);
+static PyObject *m_connect_record(DeepinPulseAudioObject *self, PyObject *args);
 
 static PyMethodDef deepin_pulseaudio_object_methods[] = 
 {
     {"delete", (PyCFunction)m_delete, METH_NOARGS, "Deepin PulseAudio destruction"}, 
     {"connect_to_pulse", (PyCFunction)m_connect_to_pulse, METH_VARARGS, "Connect to PulseAudio"},
     {"connect", (PyCFunction)m_connect, METH_VARARGS, "Connect signal callback"},
+    {"connect_record", (PyCFunction)m_connect_record, METH_VARARGS, "Connect stream to a source"},
 
     {"get_server_info", (PyCFunction)m_get_server_info, METH_NOARGS, "Get server info"},
     {"get_cards", (PyCFunction)m_get_cards, METH_NOARGS, "Get card list"}, 
@@ -356,10 +360,12 @@ static DeepinPulseAudioObject *m_init_deepin_pulseaudio_object()
     
     self->state_cb = NULL;
     self->event_cb = NULL;
+    self->record_stream_cb = NULL;
 
     self->pa_ml = NULL;                                                         
     self->pa_ctx = NULL;                                                        
     self->pa_mlapi = NULL;                                                      
+    self->stream_conn_record = NULL;
                                                                                 
     return self;
 }
@@ -450,6 +456,12 @@ static PyObject *m_delete(DeepinPulseAudioObject *self)
         Py_XDECREF(self->event_cb);
     }
 
+    if (self->stream_conn_record) {
+        pa_stream_disconnect(self->stream_conn_record);
+        pa_stream_unref(self->stream_conn_record);
+        self->stream_conn_record = NULL;
+    }
+                                                                                
     if (self->pa_ctx) {                                                         
         pa_context_disconnect(self->pa_ctx);                                    
         pa_context_unref(self->pa_ctx);                                         
@@ -1027,6 +1039,7 @@ static void m_pa_server_info_cb(pa_context *c,
             PyGILState_Release(gstate);
         }
     }
+    Py_XDECREF(server_dict);
 }
 
 static void m_pa_cardlist_cb(pa_context *c,
@@ -1197,6 +1210,7 @@ static void m_pa_cardlist_cb(pa_context *c,
             PyGILState_Release(gstate);
         }
     }
+    Py_XDECREF(card_dict);
 }
 
 static void m_pa_sinklist_cb(pa_context *c, 
@@ -1223,18 +1237,7 @@ static void m_pa_sinklist_cb(pa_context *c,
     PyObject *tmp_obj = NULL;
 
     PyObject *ret_channel_dict = NULL;
-    ret_channel_dict = PyDict_New();
-    if (!ret_channel_dict) {
-        printf("PyDict_New error");
-        return;
-    }
-
     PyObject *ret_dev_dict = NULL;
-    ret_dev_dict = PyDict_New();
-    if (!ret_dev_dict) {
-        printf("PyDict_New error");
-        return;
-    }
 
     channel_value = PyList_New(0);
     if (!channel_value) {
@@ -1329,6 +1332,10 @@ static void m_pa_sinklist_cb(pa_context *c,
             PyGILState_Release(gstate);
         }
     }
+    Py_XDECREF(ret_channel_dict);
+    Py_XDECREF(ret_active_port_value);
+    Py_XDECREF(ret_volume_value);
+    Py_XDECREF(ret_dev_dict);
 }
 
 // See above.  This callback is pretty much identical to the previous
@@ -1356,18 +1363,7 @@ static void m_pa_sourcelist_cb(pa_context *c,
     PyObject *tmp_obj = NULL;
                                                                                 
     PyObject *ret_channel_dict = NULL;
-    ret_channel_dict = PyDict_New();
-    if (!ret_channel_dict) {
-        printf("PyDict_New error");
-        return;
-    }
-
     PyObject *ret_dev_dict = NULL;
-    ret_dev_dict = PyDict_New();
-    if (!ret_dev_dict) {
-        printf("PyDict_New error");
-        return;
-    }
 
     channel_value = PyList_New(0);
     if (!channel_value) {
@@ -1462,6 +1458,10 @@ static void m_pa_sourcelist_cb(pa_context *c,
             PyGILState_Release(gstate);
         }
     }
+    Py_XDECREF(ret_channel_dict);
+    Py_XDECREF(ret_active_port_value);
+    Py_XDECREF(ret_volume_value);
+    Py_XDECREF(ret_dev_dict);
 }
 
 static void m_pa_sinkinputlist_info_cb(pa_context *c,
@@ -1544,6 +1544,7 @@ static void m_pa_sinkinputlist_info_cb(pa_context *c,
             PyGILState_Release(gstate);
         }
     }
+    Py_XDECREF(retval);
 }
 
 static void m_pa_sourceoutputlist_info_cb(pa_context *c,
@@ -1626,6 +1627,7 @@ static void m_pa_sourceoutputlist_info_cb(pa_context *c,
             PyGILState_Release(gstate);
         }
     }
+    Py_XDECREF(retval);
 }
 
 //****************************************
@@ -1878,5 +1880,121 @@ static PyObject *m_connect(DeepinPulseAudioObject *self, PyObject *args)
         PyDict_DelItem(self->event_cb, signal);
     }
     PyDict_SetItem(self->event_cb, signal, callback);
+    RETURN_TRUE;
+}
+
+// connect to record
+static void on_monitor_read_callback(pa_stream *p, size_t length, void *userdata)
+{
+    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
+    const void *data;
+    double v;
+
+    if (pa_stream_peek(p, &data, &length) < 0) {
+        printf("Failed to read data from stream\n");
+        return;
+    }
+    
+    if (!(length > 0)) {
+        return;
+    }
+    if (!(length % sizeof(float) == 0)) {
+        return;
+    }
+    v = ((const float*) data)[length / sizeof(float) -1];
+    pa_stream_drop(p);
+
+    if (v < 0) v = 0;
+    if (v > 1) v = 1;
+    /*printf("\tread callback peek: %f\n", v);*/
+    PyObject *func = NULL;
+    if (self->record_stream_cb && PyDict_Check(self->record_stream_cb) &&
+        ((func=PyDict_GetItemString(self->record_stream_cb, "read")) != NULL)) {
+        if (PyCallable_Check(func)) {
+            PyGILState_STATE gstate;
+            gstate = PyGILState_Ensure();
+            PyEval_CallFunction(func, "(Od)", self, v);
+            PyGILState_Release(gstate);
+        }
+    }
+}
+
+static void on_monitor_suspended_callback(pa_stream *p, void *userdata)
+{
+    DeepinPulseAudioObject *self = (DeepinPulseAudioObject *) userdata;
+    PyObject *func = NULL;
+    if (pa_stream_is_suspended(p) && self->record_stream_cb &&
+        PyDict_Check(self->record_stream_cb) &&
+        ((func=PyDict_GetItemString(self->record_stream_cb, "suspended")) != NULL)) {
+        if (PyCallable_Check(func)) {
+            PyGILState_STATE gstate;
+            gstate = PyGILState_Ensure();
+            PyEval_CallFunction(func, "(O)", self);
+            PyGILState_Release(gstate);
+        }
+    }
+}
+
+static PyObject *m_connect_record(DeepinPulseAudioObject *self, PyObject *args)
+{
+    if (!self->pa_ctx || pa_context_get_state(self->pa_ctx) != PA_CONTEXT_READY) {
+        RETURN_FALSE;
+    }
+    if (pa_context_get_server_protocol_version (self->pa_ctx) < 13) {
+        RETURN_FALSE;
+    }
+    PyObject *callback = NULL;
+    if (!PyArg_ParseTuple(args, "O:set_callback", &callback)) {             
+        ERROR("invalid arguments to connect_record");
+        RETURN_FALSE;
+    }
+
+    Py_XINCREF(callback);
+    Py_XDECREF(self->record_stream_cb);
+    self->record_stream_cb = callback;
+
+    if (self->stream_conn_record) {
+        pa_stream_disconnect(self->stream_conn_record);
+        pa_stream_unref(self->stream_conn_record);
+    }
+
+    pa_proplist  *proplist;
+    pa_buffer_attr attr;
+    pa_sample_spec ss;
+    int res;
+
+    // pa_sample_spec
+    ss.channels = 1;
+    ss.format = PA_SAMPLE_FLOAT32;
+    ss.rate = 25;
+
+    // pa_buffer_attr
+    memset(&attr, 0, sizeof(attr));
+    attr.fragsize = sizeof(float);
+    attr.maxlength = (uint32_t) -1;
+
+    // pa_proplist
+    proplist = pa_proplist_new ();
+    pa_proplist_sets (proplist, PA_PROP_APPLICATION_ID, "Deepin Sound Settings");
+
+    // create new stream
+    if (!(self->stream_conn_record = pa_stream_new_with_proplist(self->pa_ctx, "Deepin Sound Settings", &ss, NULL, proplist))) {
+        fprintf(stderr, "pa_stream_new error\n");
+        RETURN_FALSE;
+    }
+    pa_proplist_free(proplist);
+
+    pa_stream_set_read_callback(self->stream_conn_record, on_monitor_read_callback, self);
+    pa_stream_set_suspended_callback(self->stream_conn_record, on_monitor_suspended_callback, self);
+
+    res = pa_stream_connect_record(self->stream_conn_record, NULL, &attr, 
+                                   (pa_stream_flags_t) (PA_STREAM_DONT_MOVE
+                                                        |PA_STREAM_PEAK_DETECT
+                                                        |PA_STREAM_ADJUST_LATENCY));
+    if (res < 0) {
+        fprintf(stderr, "Failed to connect monitoring stream\n");
+        RETURN_FALSE;
+    }
+
     RETURN_TRUE;
 }

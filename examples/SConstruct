@@ -12,3 +12,5 @@ env.Program('pulsecard.c')
 env.Program('pulsevolume.c')
 
 env.Program('pulseserverinfo.c')
+
+env.Program('pulsestream_record.c')
