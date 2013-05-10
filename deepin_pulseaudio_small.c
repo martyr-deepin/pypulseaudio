@@ -577,7 +577,7 @@ static PyObject *m_set_output_active_port(DeepinPulseAudioObject *self,
     int index = 0;
     char *port = NULL;
 
-    if (!PyArg_ParseTuple(args, "ns", &index, &port)) {
+    if (!PyArg_ParseTuple(args, "is", &index, &port)) {
         ERROR("invalid arguments to set_output_active_port");
         return NULL;
     }
@@ -599,7 +599,7 @@ static PyObject *m_set_input_active_port(DeepinPulseAudioObject *self,
     int index = 0;                                                              
     char *port = NULL;                                                          
                                                                                 
-    if (!PyArg_ParseTuple(args, "ns", &index, &port)) {                         
+    if (!PyArg_ParseTuple(args, "is", &index, &port)) {
         ERROR("invalid arguments to set_input_active_port");                   
         return NULL;                                                            
     }                                                                           
@@ -623,7 +623,7 @@ static PyObject *m_set_output_mute(DeepinPulseAudioObject *self,
     int index = 0;
     PyObject *mute = NULL;
 
-    if (!PyArg_ParseTuple(args, "nO", &index, &mute)) {
+    if (!PyArg_ParseTuple(args, "iO", &index, &mute)) {
         ERROR("invalid arguments to set_output_mute");
         return NULL;
     }
@@ -652,7 +652,7 @@ static PyObject *m_set_input_mute(DeepinPulseAudioObject *self,
     int index = 0;
     PyObject *mute = NULL;
 
-    if (!PyArg_ParseTuple(args, "nO", &index, &mute)) {
+    if (!PyArg_ParseTuple(args, "iO", &index, &mute)) {
         ERROR("invalid arguments to set_input_mute");
         return NULL;
     }
@@ -685,7 +685,7 @@ static PyObject *m_set_output_volume(DeepinPulseAudioObject *self,
     Py_ssize_t tuple_size = 0;
     PyObject *tmp_obj = NULL;
 
-    if (!PyArg_ParseTuple(args, "nOn", &index, &volume, &channel_num)) {
+    if (!PyArg_ParseTuple(args, "iOi", &index, &volume, &channel_num)) {
         ERROR("invalid arguments to set_output_volume");
         return NULL;
     }
@@ -728,7 +728,7 @@ static PyObject *m_set_output_volume_with_balance(DeepinPulseAudioObject *self,
     }
 
     int index = -1;
-    long int volume;
+    unsigned int volume;
     float balance;
     pa_cvolume output_volume;
     pa_channel_map output_channel_map;
@@ -736,7 +736,7 @@ static PyObject *m_set_output_volume_with_balance(DeepinPulseAudioObject *self,
 
     PyObject *channel_map_list = NULL;
 
-    if (!PyArg_ParseTuple(args, "nlfnO", &index, &volume, &balance, &channel_num, &channel_map_list)) {
+    if (!PyArg_ParseTuple(args, "iIfiO", &index, &volume, &balance, &channel_num, &channel_map_list)) {
         ERROR("invalid arguments to set_output_volume");
         return NULL;
     }
@@ -779,7 +779,7 @@ static PyObject *m_set_input_volume(DeepinPulseAudioObject *self,
     Py_ssize_t tuple_size = 0;
     PyObject *tmp_obj = NULL;
 
-    if (!PyArg_ParseTuple(args, "nOn", &index, &volume, &channel_num)) {
+    if (!PyArg_ParseTuple(args, "iOi", &index, &volume, &channel_num)) {
         ERROR("invalid arguments to set_input_volume");
         return NULL;
     }
@@ -822,7 +822,7 @@ static PyObject *m_set_input_volume_with_balance(DeepinPulseAudioObject *self,
     }
 
     int index = -1;
-    long int volume;
+    unsigned int volume;
     float balance;
     pa_cvolume input_volume;
     pa_channel_map input_channel_map;
@@ -830,7 +830,7 @@ static PyObject *m_set_input_volume_with_balance(DeepinPulseAudioObject *self,
 
     PyObject *channel_map_list = NULL;
 
-    if (!PyArg_ParseTuple(args, "nlfnO", &index, &volume, &balance, &channel_num, &channel_map_list)) {
+    if (!PyArg_ParseTuple(args, "iIfiO", &index, &volume, &balance, &channel_num, &channel_map_list)) {
         ERROR("invalid arguments to set_output_volume");
         return NULL;
     }
@@ -869,7 +869,7 @@ static PyObject *m_set_sink_input_mute(DeepinPulseAudioObject *self,
     int index = 0;
     PyObject *mute = NULL;
 
-    if (!PyArg_ParseTuple(args, "nO", &index, &mute)) {
+    if (!PyArg_ParseTuple(args, "iO", &index, &mute)) {
         ERROR("invalid arguments to set_sink_input_mute");
         return NULL;
     }
@@ -902,7 +902,7 @@ static PyObject *m_set_sink_input_volume(DeepinPulseAudioObject *self,
     Py_ssize_t tuple_size = 0;
     PyObject *tmp_obj = NULL;
 
-    if (!PyArg_ParseTuple(args, "nOn", &index, &volume, &channel_num)) {
+    if (!PyArg_ParseTuple(args, "iOi", &index, &volume, &channel_num)) {
         ERROR("invalid arguments to set_input_volume");
         return NULL;
     }
