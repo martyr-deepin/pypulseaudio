@@ -3317,8 +3317,8 @@ static void m_context_state_cb(pa_context *c, void *userdata)
             pa_context_unref(self->pa_ctx);                                          
             self->pa_ctx = NULL;                                                     
                                                                                 
-            /*printf("Connection failed, attempting reconnect\n");          */
-            /*g_timeout_add_seconds(13, m_connect_to_pulse, self);               */
+            printf("Connection failed, attempting reconnect\n");          
+            g_timeout_add_seconds(13, m_connect_to_pulse, self);               
             return;                                                             
                                                                                 
         case PA_CONTEXT_TERMINATED:                                             

@@ -1740,6 +1740,36 @@ static void m_pa_context_subscribe_cb(pa_context *c,
     }
 }
 
+static PyObject *m_connect_to_pulse_func(DeepinPulseAudioObject *self)
+{
+    if (!self->state_cb || self->pa_ctx) {
+        RETURN_FALSE;
+    }
+    self->pa_ctx = pa_context_new(self->pa_mlapi, PACKAGE);
+    if (!self->pa_ctx) {
+        printf("pa_context_new() failed\n");
+        RETURN_FALSE;
+    }
+    pa_context_set_state_callback(self->pa_ctx, m_context_state_cb, self);
+
+    if (pa_context_connect(self->pa_ctx, NULL, PA_CONTEXT_NOFAIL, NULL) < 0) {
+        if (pa_context_errno(self->pa_ctx) == PA_ERR_INVALID) {
+            printf("Connection to PulseAudio failed. Automatic retry in 13s\n");
+            RETURN_FALSE;
+        } else {
+            m_delete(self);
+            RETURN_FALSE;
+        }
+    }
+    RETURN_TRUE;
+}
+
+gboolean m_connect_to_pulse_again(DeepinPulseAudioObject *self)
+{
+    m_connect_to_pulse_func(self);
+    return FALSE;
+}
+
 static void m_context_state_cb(pa_context *c, void *userdata) 
 {
     if (!c || !userdata) 
@@ -1815,8 +1845,8 @@ static void m_context_state_cb(pa_context *c, void *userdata)
             pa_context_unref(self->pa_ctx);                                          
             self->pa_ctx = NULL;                                                     
                                                                                 
-            /*printf("Connection failed, attempting reconnect\n");          */
-            /*g_timeout_add_seconds(13, (GSourceFunc)m_connect_to_pulse, self);               */
+            printf("Connection failed, attempting reconnect\n");          
+            g_timeout_add_seconds(13, (GSourceFunc)m_connect_to_pulse_again, self);               
             return;                                                             
                                                                                 
         case PA_CONTEXT_TERMINATED:                                             
@@ -1841,24 +1871,7 @@ static PyObject *m_connect_to_pulse(DeepinPulseAudioObject *self, PyObject *args
     Py_XINCREF(cb_fun);                                                   
     self->state_cb = cb_fun;
 
-    self->pa_ctx = pa_context_new(self->pa_mlapi, PACKAGE);
-    if (!self->pa_ctx) {
-        printf("pa_context_new() failed\n");
-        RETURN_FALSE;
-    }
-
-    pa_context_set_state_callback(self->pa_ctx, m_context_state_cb, self);
-
-    if (pa_context_connect(self->pa_ctx, NULL, PA_CONTEXT_NOFAIL, NULL) < 0) {
-        if (pa_context_errno(self->pa_ctx) == PA_ERR_INVALID) {
-            printf("Connection to PulseAudio failed. Automatic retry in 13s\n");
-            RETURN_FALSE;
-        } else {
-            m_delete(self);
-            RETURN_FALSE;
-        }
-    }
-    RETURN_TRUE;
+    return m_connect_to_pulse_func(self);
 }
 
 static PyObject *m_connect(DeepinPulseAudioObject *self, PyObject *args)         
