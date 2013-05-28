@@ -1841,13 +1841,17 @@ static void m_context_state_cb(pa_context *c, void *userdata)
             break;
         }
                                                                                 
-        case PA_CONTEXT_FAILED:                                                 
-            pa_context_unref(self->pa_ctx);                                          
-            self->pa_ctx = NULL;                                                     
+        case PA_CONTEXT_FAILED: {
+            pa_context_unref(self->pa_ctx);
+            self->pa_ctx = NULL;
+
+            system("pkill pulseaudio");
+            system("pulseaudio -D");
                                                                                 
             printf("Connection failed, attempting reconnect\n");          
             g_timeout_add_seconds(13, (GSourceFunc)m_connect_to_pulse_again, self);               
             return;                                                             
+        }
                                                                                 
         case PA_CONTEXT_TERMINATED:                                             
         default:        
