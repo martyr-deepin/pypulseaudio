@@ -556,13 +556,13 @@ static DeepinPulseAudioObject *m_new(PyObject *dummy, PyObject *args)
 
     self->input_ports = PyDict_New();
     if (!self->input_ports) {
-        printf("PyDict_New error");
+        ERROR("PyDict_New error");
         return NULL;
     }
 
     self->output_ports = PyDict_New();
     if (!self->output_ports) {
-        printf("PyDict_New error");
+        ERROR("PyDict_New error");
         return NULL;
     }
 
@@ -990,7 +990,7 @@ static PyObject *m_get_devices(DeepinPulseAudioObject *self)
 
 static PyObject *m_get_output_devices(DeepinPulseAudioObject *self) 
 {
-    /*printf("get_output_devices: %p %d\n", self->output_devices, self->output_devices->ob_refcnt);*/
+    /*ERROR("get_output_devices: %p %d\n", self->output_devices, self->output_devices->ob_refcnt);*/
     if (self->output_devices) {
         Py_INCREF(self->output_devices);
         return self->output_devices;
@@ -2329,30 +2329,30 @@ static void m_pa_cardlist_cb(pa_context *c,
 
     card_dict = PyDict_New();
     if (!card_dict) {
-        printf("PyDict_New error");
+        ERROR("PyDict_New error");
         return;
     }
 
     active_profile = PyDict_New();
     if (!active_profile) {
-        printf("PyDict_New error");
+        ERROR("PyDict_New error");
         return;
     }
 
     prop_dict = PyDict_New();
     if (!prop_dict) {
-        printf("PyDict_New error");
+        ERROR("PyDict_New error");
         return;
     }
 
     profile_list = PyList_New(0);
     if (!profile_list) {
-        printf("PyList_New error");
+        ERROR("PyList_New error");
         return;
     }
     port_list = PyList_New(0);
     if (!port_list) {
-        printf("PyList_New error");
+        ERROR("PyList_New error");
         return;
     }
 
@@ -2368,7 +2368,7 @@ static void m_pa_cardlist_cb(pa_context *c,
     for (ctr = 0; ctr < i->n_profiles; ctr++) {
         profile_dict = PyDict_New();
         if (!profile_dict) {
-            printf("PyDict_New error");
+            ERROR("PyDict_New error");
             return;
         }
         tmp_obj = STRING(i->profiles[ctr].name);
@@ -2434,7 +2434,7 @@ static void m_pa_cardlist_cb(pa_context *c,
     for (ctr = 0; ctr < i->n_ports; ctr++) {
         port_dict = PyDict_New();
         if (!port_dict) {
-            printf("PyDict_New error");
+            ERROR("PyDict_New error");
             return;
         }
         tmp_obj = STRING(i->ports[ctr]->name);
@@ -2495,22 +2495,22 @@ static void m_pa_sinklist_cb(pa_context *c,
 
     channel_value = PyList_New(0);
     if (!channel_value) {
-        printf("PyList_New error");
+        ERROR("PyList_New error");
         return;
     }
     volume_value = PyList_New(0);
     if (!volume_value) {
-        printf("PyList_New error");
+        ERROR("PyList_New error");
         return;
     }
     prop_dict = PyDict_New();
     if (!prop_dict) {
-        printf("PyDict_New error");
+        ERROR("PyDict_New error");
         return;
     }
     port_list = PyList_New(0);
     if (!port_list) {
-        printf("PyList_New error");
+        ERROR("PyList_New error");
         return;
     }
                                                                                 
@@ -2614,23 +2614,23 @@ static void m_pa_sourcelist_cb(pa_context *c,
 
     channel_value = PyList_New(0);
     if (!channel_value) {
-        printf("PyList_New error");
+        ERROR("PyList_New error");
         return;
     }
     volume_value = PyList_New(0);
     if (!volume_value) {
-        printf("PyList_New error");
+        ERROR("PyList_New error");
         return;
     }
     prop_dict = PyDict_New();
     if (!prop_dict) {
-        printf("PyDict_New error\n");
+        ERROR("PyDict_New error\n");
         return;
     }
         
     port_list = PyList_New(0);
     if (!port_list) {
-        printf("PyList_New error");
+        ERROR("PyList_New error");
         return;
     }
                                                                                 
@@ -2724,17 +2724,17 @@ static void m_pa_sinkinputlist_info_cb(pa_context *c,
 
     channel_value = PyList_New(0);
     if (!channel_value) {
-        printf("PyList_New error");
+        ERROR("PyList_New error");
         return;
     }
     volume_value = PyList_New(0);
     if (!volume_value) {
-        printf("PyList_New error");
+        ERROR("PyList_New error");
         return;
     }
     prop_dict = PyDict_New();
     if (!prop_dict) {
-        printf("PyDict_New error\n");
+        ERROR("PyDict_New error\n");
         return;
     }
 
@@ -2801,17 +2801,17 @@ static void m_pa_sourceoutputlist_info_cb(pa_context *c,
 
     channel_value = PyList_New(0);
     if (!channel_value) {
-        printf("PyList_New error");
+        ERROR("PyList_New error");
         return;
     }
     volume_value = PyList_New(0);
     if (!volume_value) {
-        printf("PyList_New error");
+        ERROR("PyList_New error");
         return;
     }
     prop_dict = PyDict_New();
     if (!prop_dict) {
-        printf("PyDict_New error\n");
+        ERROR("PyDict_New error\n");
         return;
     }
 
@@ -3307,7 +3307,7 @@ static void m_context_state_cb(pa_context *c, void *userdata)
                                             /*PA_SUBSCRIPTION_MASK_CLIENT|        */
                                             /*PA_SUBSCRIPTION_MASK_SERVER|        */
                                             /*PA_SUBSCRIPTION_MASK_CARD), NULL, NULL))) {*/
-                printf("pa_context_subscribe() failed\n");                 
+                ERROR("pa_context_subscribe() failed\n");                 
                 return;                                                         
             }                                                                   
             pa_operation_unref(pa_op);
@@ -3317,13 +3317,13 @@ static void m_context_state_cb(pa_context *c, void *userdata)
             pa_context_unref(self->pa_ctx);                                          
             self->pa_ctx = NULL;                                                     
                                                                                 
-            printf("Connection failed, attempting reconnect\n");          
+            ERROR("Connection failed, attempting reconnect\n");          
             g_timeout_add_seconds(13, m_connect_to_pulse, self);               
             return;                                                             
                                                                                 
         case PA_CONTEXT_TERMINATED:                                             
         default:        
-            printf("pa_context terminated\n");            
+            ERROR("pa_context terminated\n");            
             return;                                                             
     }
 }
@@ -3332,7 +3332,7 @@ static PyObject *m_connect_to_pulse(DeepinPulseAudioObject *self)
 {
     self->pa_ctx = pa_context_new(self->pa_mlapi, PACKAGE);
     if (!self->pa_ctx) {
-        printf("pa_context_new() failed\n");
+        ERROR("pa_context_new() failed\n");
         RETURN_FALSE;
     }
 
@@ -3340,7 +3340,7 @@ static PyObject *m_connect_to_pulse(DeepinPulseAudioObject *self)
 
     if (pa_context_connect(self->pa_ctx, NULL, PA_CONTEXT_NOFAIL, NULL) < 0) {
         if (pa_context_errno(self->pa_ctx) == PA_ERR_INVALID) {
-            printf("Connection to PulseAudio failed. Automatic retry in 13s\n");
+            ERROR("Connection to PulseAudio failed. Automatic retry in 13s\n");
             RETURN_FALSE;
         } else {
             m_delete(self);
@@ -3357,13 +3357,13 @@ static void on_monitor_read_callback(pa_stream *p, size_t length, void *userdata
     const void *data;
     double v;
 
-    /*printf("read callback length: %d\n", length);*/
-    /*printf("\tget_device_index: %d\n", pa_stream_get_device_index(p));*/
-    /*printf("\tget_device_name: %s\n", pa_stream_get_device_name(p));*/
-    /*printf("\tget_monitor_stream: %d\n", pa_stream_get_monitor_stream(p));*/
+    /*ERROR("read callback length: %d\n", length);*/
+    /*ERROR("\tget_device_index: %d\n", pa_stream_get_device_index(p));*/
+    /*ERROR("\tget_device_name: %s\n", pa_stream_get_device_name(p));*/
+    /*ERROR("\tget_monitor_stream: %d\n", pa_stream_get_monitor_stream(p));*/
 
     if (pa_stream_peek(p, &data, &length) < 0) {
-        printf("Failed to read data from stream\n");
+        ERROR("Failed to read data from stream\n");
         return;
     }
     
@@ -3374,7 +3374,7 @@ static void on_monitor_read_callback(pa_stream *p, size_t length, void *userdata
 
     if (v < 0) v = 0;
     if (v > 1) v = 1;
-    /*printf("\tread callback peek: %f\n", v);*/
+    /*ERROR("\tread callback peek: %f\n", v);*/
     if (self->stream_conn_record_read_cb && PyCallable_Check(self->stream_conn_record_read_cb)) {
         PyGILState_STATE gstate;
         gstate = PyGILState_Ensure();
@@ -3527,7 +3527,7 @@ static PyObject *m_connect(DeepinPulseAudioObject *self, PyObject *args)
 static PyObject *m_connect_record(DeepinPulseAudioObject *self, PyObject *args)
 {
     if (!self->pa_ctx) {
-        printf("pa_context_new() failed\n");
+        ERROR("pa_context_new() failed\n");
         RETURN_FALSE;
     }
     if (pa_context_get_server_protocol_version (self->pa_ctx) < 13) {
@@ -3576,7 +3576,7 @@ static PyObject *m_connect_record(DeepinPulseAudioObject *self, PyObject *args)
 
     // create new stream
     if (!(self->stream_conn_record = pa_stream_new_with_proplist(self->pa_ctx, "Deepin Sound Settings", &ss, NULL, proplist))) {
-        fprintf(stderr, "pa_stream_new error\n");
+        ERROR("pa_stream_new error\n");
         RETURN_FALSE;
     }
     pa_proplist_free(proplist);
@@ -3590,7 +3590,7 @@ static PyObject *m_connect_record(DeepinPulseAudioObject *self, PyObject *args)
                                                         |PA_STREAM_ADJUST_LATENCY));
     
     if (res < 0) {
-        fprintf(stderr, "Failed to connect monitoring stream\n");
+        ERROR("Failed to connect monitoring stream\n");
         RETURN_FALSE;
     }
 
